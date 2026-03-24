@@ -19,8 +19,8 @@ const IssueSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["open", "in_review", "resolved", "closed"],
-      default: "open",
+      enum: ["received", "contacted", "solved", "closed"],
+      default: "received",
     },
     assignedTo: { type: String, trim: true },
     adminReply: { type: String, trim: true },

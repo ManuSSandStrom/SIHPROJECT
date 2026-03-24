@@ -37,8 +37,11 @@ export function AdminSection({
   handleFeedbackStatusChange,
   handleIssueStatusChange,
   handleContactStatusChange,
+  handleUserStatusChange,
 }) {
   const studentCount = users.filter((user) => user.role === "student").length;
+  const lecturerCount = users.filter((user) => user.role === "lecturer" && user.status === "active").length;
+  const pendingLecturers = users.filter((user) => user.role === "lecturer" && user.status === "pending");
   const presentCount = attendance.filter((item) => item.status === "present").length;
   const attendanceRate = attendance.length ? Math.round((presentCount / attendance.length) * 100) : 0;
 
@@ -46,9 +49,9 @@ export function AdminSection({
     <div className="grid gap-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MiniPanel title="Students" value={studentCount} subtitle="Roster by department and section" />
-        <MiniPanel title="Lecturers" value={faculty.length} subtitle="Mapped to teaching responsibilities" />
+        <MiniPanel title="Lecturers" value={lecturerCount || faculty.length} subtitle="Approved staff with teaching responsibilities" />
         <MiniPanel title="Attendance rate" value={`${attendanceRate}%`} subtitle="Daily attendance performance" />
-        <MiniPanel title="Help inbox" value={dashboard?.kpis?.contactMessages || contactMessages.length} subtitle="Messages from contact and help" />
+        <MiniPanel title="Pending approvals" value={dashboard?.kpis?.pendingLecturerApprovals || pendingLecturers.length} subtitle="Lecturer signup requests waiting for admin action" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
@@ -60,10 +63,11 @@ export function AdminSection({
               <InputField label="Email" type="email" value={studentForm.email} onChange={(value) => setStudentForm({ ...studentForm, email: value })} />
             </div>
             <div className="grid gap-3 md:grid-cols-3">
+              <InputField label="Roll number" value={studentForm.rollNumber || ""} onChange={(value) => setStudentForm({ ...studentForm, rollNumber: value.toUpperCase() })} />
               <InputField label="Department" value={studentForm.department} onChange={(value) => setStudentForm({ ...studentForm, department: value })} />
               <InputField label="Semester" type="number" value={studentForm.semester} onChange={(value) => setStudentForm({ ...studentForm, semester: Number(value) })} />
-              <InputField label="Section" value={studentForm.section} onChange={(value) => setStudentForm({ ...studentForm, section: value.toUpperCase() })} />
             </div>
+            <InputField label="Section" value={studentForm.section} onChange={(value) => setStudentForm({ ...studentForm, section: value.toUpperCase() })} />
             <InputField label="Phone" value={studentForm.phone || ""} onChange={(value) => setStudentForm({ ...studentForm, phone: value })} />
             <button type="submit" className="primary-button justify-center">Add student</button>
           </form>
@@ -144,6 +148,34 @@ export function AdminSection({
                 <p className="mt-1 text-sm text-slate-500">{new Date(holiday.date).toLocaleDateString()} - {holiday.department} - Section {holiday.section}</p>
               </div>
             ))}
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Lecturer approval queue" description="Lecturer signups stay pending until admin approves them for portal access and attendance marking.">
+          <div className="space-y-3">
+            {pendingLecturers.length === 0 ? (
+              <div className="rounded-3xl border border-sky-100 bg-sky-50/70 p-4 text-sm text-slate-600">
+                No lecturer approvals are waiting right now.
+              </div>
+            ) : (
+              pendingLecturers.map((lecturer) => (
+                <div key={lecturer._id} className="rounded-3xl border border-sky-100 bg-slate-50/70 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="font-semibold text-slate-950">{lecturer.name}</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {lecturer.staffId} - {lecturer.department || "Department pending"} - {lecturer.qualification || "Qualification not provided"}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-600">{lecturer.email} - {lecturer.phone || "No phone number"}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className="primary-button px-4 py-2" onClick={() => handleUserStatusChange(lecturer._id, "active")}>Approve lecturer</button>
+                      <button type="button" className="secondary-button px-4 py-2" onClick={() => handleUserStatusChange(lecturer._id, "inactive")}>Decline</button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </SectionCard>
       </div>
@@ -287,9 +319,9 @@ export function AdminSection({
                   <p className="mt-2 text-sm leading-6 text-slate-600">{issue.description}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <span className="pill">{issue.status}</span>
-                    <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleIssueStatusChange(issue._id, issue.status === "resolved" ? "closed" : "resolved")}>
-                      {issue.status === "resolved" ? "Close issue" : "Resolve issue"}
-                    </button>
+                    <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleIssueStatusChange(issue._id, "received")}>Received</button>
+                    <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleIssueStatusChange(issue._id, "contacted")}>Contacted</button>
+                    <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleIssueStatusChange(issue._id, "solved")}>Solved</button>
                   </div>
                 </div>
               ))}
@@ -299,7 +331,8 @@ export function AdminSection({
               {feedback.slice(0, 3).map((item) => (
                 <div key={item._id} className="rounded-3xl border border-sky-100 bg-slate-50/70 p-4">
                   <p className="font-semibold text-slate-950">{item.title}</p>
-                  <p className="mt-1 text-sm text-slate-500">{item.studentName} - {item.lecturerName || "General"} - Rating {item.rating}/5</p>
+                  <p className="mt-1 text-sm text-slate-500">{item.studentName} - {item.lecturerName || "General"} - {item.subjectName || "Subject pending"} - Rating {item.rating}/5</p>
+                  <p className="mt-1 text-xs text-slate-500">Teaching {item.teachingRating || "-"} | Lab {item.labRating || "-"} | Notes {item.notesRating || "-"}</p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">{item.message}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleFeedbackStatusChange(item._id, "reviewed")}>Mark reviewed</button>

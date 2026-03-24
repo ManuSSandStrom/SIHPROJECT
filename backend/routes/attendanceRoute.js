@@ -1,7 +1,10 @@
 import { Router } from "express";
 import Attendance from "../models/Attendance.js";
+import Faculty from "../models/Faculty.js";
 import Holiday from "../models/Holiday.js";
+import Timetable from "../models/Timetable.js";
 import User from "../models/User.js";
+import Course from "../models/course.js";
 
 export const attendanceRouter = Router();
 
@@ -56,6 +59,137 @@ attendanceRouter.get("/summary", async (_req, res) => {
   }
 });
 
+attendanceRouter.get("/lecturer-workspace", async (req, res) => {
+  try {
+    const { email, staffId, date } = req.query;
+    if (!email && !staffId) {
+      return res.status(400).json({ error: "Lecturer email or staff ID is required." });
+    }
+
+    const lecturer = await User.findOne(
+      staffId
+        ? { staffId: String(staffId).trim().toUpperCase(), role: "lecturer" }
+        : { email: String(email).trim().toLowerCase(), role: "lecturer" }
+    );
+
+    if (!lecturer) {
+      return res.status(404).json({ error: "Lecturer account not found." });
+    }
+
+    const faculty = await Faculty.findOne({
+      $or: [
+        lecturer.staffId ? { employeeId: lecturer.staffId } : null,
+        { email: lecturer.email },
+        { name: lecturer.name },
+      ].filter(Boolean),
+    });
+
+    if (!faculty) {
+      return res.status(404).json({ error: "Lecturer is not linked to faculty scheduling data yet." });
+    }
+
+    const targetDate = date ? new Date(date) : new Date();
+    const weekday = targetDate.toLocaleDateString("en-US", { weekday: "long" });
+    const timetableDocs = await Timetable.find({
+      status: { $in: ["draft", "published"] },
+      "schedule.day": weekday,
+    }).sort({ updatedAt: -1 });
+
+    const courseIds = new Set();
+    const assignments = [];
+
+    timetableDocs.forEach((timetable) => {
+      timetable.schedule
+        .filter(
+          (entry) =>
+            entry.day === weekday &&
+            (String(entry.facultyId) === String(faculty._id) || entry.facultyName === faculty.name)
+        )
+        .forEach((entry) => {
+          courseIds.add(String(entry.courseId));
+          assignments.push({ timetable, entry });
+        });
+    });
+
+    const courses = await Course.find({ _id: { $in: Array.from(courseIds) } });
+    const recordsDate = targetDate.toISOString().slice(0, 10);
+
+    const lecturerAssignments = await Promise.all(
+      assignments.map(async ({ timetable, entry }) => {
+        const course = courses.find((item) => String(item._id) === String(entry.courseId));
+        const linkedSubject =
+          (faculty.assignedSubjects || []).find(
+            (item) =>
+              item.courseCode === course?.code ||
+              item.subjectName?.toLowerCase() === entry.courseName?.toLowerCase()
+          ) || {};
+
+        const department = linkedSubject.department || timetable.department || lecturer.department;
+        const semester = linkedSubject.semester || Number(timetable.semester);
+        const section = linkedSubject.section || lecturer.section || "A";
+        const students = await User.find({
+          role: "student",
+          department,
+          section,
+          semester,
+          status: "active",
+        }).sort({ rollNumber: 1, name: 1 });
+
+        const attendanceRecords = await Attendance.find({
+          date: {
+            $gte: new Date(recordsDate),
+            $lt: new Date(new Date(recordsDate).setDate(new Date(recordsDate).getDate() + 1)),
+          },
+          courseCode: course?.code || linkedSubject.courseCode,
+          section,
+        });
+
+        return {
+          entryId: `${timetable._id}-${entry.day}-${entry.startTime}-${entry.courseId}`,
+          department,
+          semester,
+          section,
+          courseCode: course?.code || linkedSubject.courseCode || "",
+          courseName: course?.name || entry.courseName,
+          subjectName: linkedSubject.subjectName || course?.name || entry.courseName,
+          facultyId: String(faculty._id),
+          facultyName: faculty.name,
+          roomName: entry.roomName,
+          slotLabel: entry.timeSlot || `${entry.startTime}-${entry.endTime}`,
+          date: recordsDate,
+          sessionType: entry.sessionType || course?.type || "lecture",
+          students: students.map((student) => {
+            const record = attendanceRecords.find((item) => String(item.studentId) === String(student._id));
+            return {
+              _id: student._id,
+              name: student.name,
+              rollNumber: student.rollNumber || student.collegeId,
+              collegeId: student.collegeId,
+              status: record?.status || "present",
+            };
+          }),
+        };
+      })
+    );
+
+    res.json({
+      lecturer: {
+        _id: lecturer._id,
+        name: lecturer.name,
+        email: lecturer.email,
+        staffId: lecturer.staffId,
+        department: lecturer.department,
+      },
+      weekday,
+      date: recordsDate,
+      assignments: lecturerAssignments,
+    });
+  } catch (error) {
+    console.error("Error fetching lecturer workspace:", error);
+    res.status(500).json({ error: "Failed to fetch lecturer workspace" });
+  }
+});
+
 attendanceRouter.post("/", async (req, res) => {
   try {
     const record = await Attendance.create(req.body);
@@ -73,8 +207,33 @@ attendanceRouter.post("/bulk", async (req, res) => {
       return res.status(400).json({ error: "Attendance records are required." });
     }
 
-    const created = await Attendance.insertMany(records);
-    res.status(201).json(created);
+    const saved = await Promise.all(
+      records.map(async (record) => {
+        const identity = {
+          studentId: record.studentId,
+          date: new Date(record.date),
+          courseCode: record.courseCode,
+          slotLabel: record.slotLabel,
+          section: record.section,
+        };
+
+        return Attendance.findOneAndUpdate(
+          identity,
+          {
+            ...record,
+            date: new Date(record.date),
+          },
+          {
+            new: true,
+            upsert: true,
+            runValidators: true,
+            setDefaultsOnInsert: true,
+          }
+        );
+      })
+    );
+
+    res.status(201).json(saved);
   } catch (error) {
     console.error("Error creating attendance records:", error);
     res.status(500).json({ error: "Failed to create attendance records" });
@@ -123,18 +282,21 @@ attendanceRouter.post("/holiday", async (req, res) => {
       studentId: student._id,
       studentName: student.name,
       collegeId: student.collegeId,
+      rollNumber: student.rollNumber || student.collegeId,
       department: student.department,
       section: student.section,
       semester: student.semester,
       courseCode,
       courseName,
       facultyName: "Administration",
+      facultyId: null,
       date: attendanceDate,
       slotLabel: "Holiday",
       sessionType: "special",
       status: "present",
       notes: description,
       markedBy,
+      markedByRole: "admin",
       isHoliday: true,
       holidayTitle: title,
     }));

@@ -28,9 +28,10 @@ export function AttendanceSection({
         (user) =>
           user.role === "student" &&
           user.department === planner.department &&
-          user.section === planner.section
+          user.section === planner.section &&
+          Number(user.semester) === Number(planner.semester)
       ),
-    [users, planner.department, planner.section]
+    [users, planner.department, planner.section, planner.semester]
   );
 
   const dayHoliday = holidays.find((holiday) => {
@@ -49,6 +50,7 @@ export function AttendanceSection({
       studentId: student._id,
       studentName: student.name,
       collegeId: student.collegeId,
+      rollNumber: student.rollNumber || student.collegeId,
       department: student.department,
       section: student.section,
       semester: student.semester,
@@ -60,6 +62,7 @@ export function AttendanceSection({
       sessionType: planner.sessionType,
       status: dayHoliday ? "present" : statusMap[student._id] || "present",
       markedBy: "Admin",
+      markedByRole: "admin",
       isHoliday: Boolean(dayHoliday),
       holidayTitle: dayHoliday?.title || "",
     }));
@@ -126,7 +129,7 @@ export function AttendanceSection({
               <div>
                 <p className="font-semibold text-slate-950">{student.name}</p>
                 <p className="text-sm text-slate-500">
-                  {student.collegeId} - {student.department} - Section {student.section}
+                  {student.rollNumber || student.collegeId} - {student.department} - Semester {student.semester} - Section {student.section}
                 </p>
               </div>
               <div className="min-w-40">

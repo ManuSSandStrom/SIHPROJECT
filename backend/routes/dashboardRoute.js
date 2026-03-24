@@ -43,11 +43,12 @@ dashboardRouter.get("/summary", async (_req, res) => {
 
     const presentCount = attendance.filter((item) => item.status === "present").length;
     const attendanceRate = attendance.length ? Math.round((presentCount / attendance.length) * 100) : 0;
-    const openIssues = issues.filter((item) => item.status === "open" || item.status === "in_review").length;
+    const openIssues = issues.filter((item) => item.status === "received" || item.status === "contacted").length;
     const averageFeedback =
       feedback.length > 0
         ? Number((feedback.reduce((sum, item) => sum + item.rating, 0) / feedback.length).toFixed(1))
         : 0;
+    const pendingLecturerApprovals = users.filter((item) => item.role === "lecturer" && item.status === "pending").length;
 
     res.json({
       kpis: {
@@ -60,6 +61,7 @@ dashboardRouter.get("/summary", async (_req, res) => {
         averageFeedback,
         holidayCount: holidays.length,
         contactMessages: contactMessages.length,
+        pendingLecturerApprovals,
       },
       latest: {
         users: users.slice(0, 5),
@@ -72,9 +74,10 @@ dashboardRouter.get("/summary", async (_req, res) => {
       },
       supportQueues: {
         issuesByStatus: {
-          open: issues.filter((item) => item.status === "open").length,
-          inReview: issues.filter((item) => item.status === "in_review").length,
-          resolved: issues.filter((item) => item.status === "resolved").length,
+          received: issues.filter((item) => item.status === "received").length,
+          contacted: issues.filter((item) => item.status === "contacted").length,
+          solved: issues.filter((item) => item.status === "solved").length,
+          closed: issues.filter((item) => item.status === "closed").length,
         },
         feedbackByStatus: {
           new: feedback.filter((item) => item.status === "new").length,
@@ -93,6 +96,7 @@ dashboardRouter.get("/summary", async (_req, res) => {
         notifications: notifications.length,
         holidays: holidays.length,
         contactMessages: contactMessages.length,
+        pendingLecturerApprovals,
       },
     });
   } catch (error) {

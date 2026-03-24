@@ -28,7 +28,7 @@ issuesRouter.post("/", async (req, res) => {
 issuesRouter.put("/:id", async (req, res) => {
   try {
     const updates = { ...req.body };
-    if (updates.status === "resolved" || updates.status === "closed") {
+    if (updates.status === "solved" || updates.status === "closed") {
       updates.resolvedAt = new Date();
     }
 

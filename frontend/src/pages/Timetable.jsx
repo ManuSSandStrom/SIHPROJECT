@@ -111,7 +111,7 @@ function TimetableGrid({ timetable, courses, faculty, rooms }) {
           <div>
             <CardTitle className="text-xl font-bold text-cyan-100">{timetable.name}</CardTitle>
             <div className="text-sm text-slate-400">
-              {timetable.department} • Semester {timetable.semester} • {timetable.year}
+              {timetable.department} | Semester {timetable.semester} | {timetable.year}
             </div>
           </div>
           <div className="flex gap-2 items-center">
@@ -240,7 +240,7 @@ export default function TimetablePage() {
   const [error, setError] = useState(null)
   const [activeNavItem, setActiveNavItem] = useState("timetables")
   const [form, setForm] = useState({
-    department: "Computer Science",
+    department: "MCA",
     semester: "5",
     academicYear: new Date().getFullYear(),
     constraintsText: "",
@@ -386,6 +386,90 @@ export default function TimetablePage() {
     }
   }
 
+  function exportTimetableCsv(timetable) {
+    if (!timetable) return
+    const rows = [
+      ["Day", "Start Time", "End Time", "Course", "Faculty", "Room", "Session Type"],
+      ...(timetable.schedule || []).map((entry) => [
+        entry.day || "",
+        entry.startTime || "",
+        entry.endTime || "",
+        entry.courseName || "",
+        entry.facultyName || "",
+        entry.roomName || "",
+        entry.sessionType || "",
+      ]),
+    ]
+    const csv = rows
+      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+      .join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    link.href = URL.createObjectURL(blob)
+    link.download = `${(timetable.name || "timetable").replace(/\s+/g, "-").toLowerCase()}.csv`
+    link.click()
+    URL.revokeObjectURL(link.href)
+  }
+
+  function exportTimetablePdf(timetable) {
+    if (!timetable) return
+    const printWindow = window.open("", "_blank", "width=1200,height=900")
+    if (!printWindow) return
+
+    const rows = (timetable.schedule || [])
+      .map(
+        (entry) => `
+          <tr>
+            <td>${entry.day || ""}</td>
+            <td>${entry.startTime || ""}</td>
+            <td>${entry.endTime || ""}</td>
+            <td>${entry.courseName || ""}</td>
+            <td>${entry.facultyName || ""}</td>
+            <td>${entry.roomName || ""}</td>
+            <td>${entry.sessionType || ""}</td>
+          </tr>
+        `,
+      )
+      .join("")
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${timetable.name}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
+            h1 { margin-bottom: 8px; }
+            p { color: #475569; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+            th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 13px; }
+            th { background: #e0f2fe; }
+          </style>
+        </head>
+        <body>
+          <h1>${timetable.name}</h1>
+          <p>${timetable.department} | Semester ${timetable.semester} | ${timetable.year}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Course</th>
+                <th>Faculty</th>
+                <th>Room</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
+  }
+
   const navigationItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
     { id: "courses", label: "Courses", icon: BookOpen, path: "/admin/courses" },
@@ -483,7 +567,7 @@ export default function TimetablePage() {
                         <Input
                           value={form.department}
                           onChange={(e) => setForm({ ...form, department: e.target.value })}
-                          placeholder="e.g., Computer Science"
+                          placeholder="e.g., MCA"
                           required
                           className="bg-slate-800/50 border-slate-600/50 focus:border-cyan-500 focus:ring-cyan-500/20 text-slate-200 placeholder-slate-500 backdrop-blur-sm transition-all duration-300 hover:border-slate-500/70"
                         />
@@ -549,7 +633,7 @@ export default function TimetablePage() {
                         variant="outline"
                         onClick={() =>
                           setForm({
-                            department: "Computer Science",
+                            department: "MCA",
                             semester: "5",
                             academicYear: new Date().getFullYear(),
                             constraintsText: "",
@@ -590,7 +674,7 @@ export default function TimetablePage() {
                           <div className="flex-1">
                             <div className="font-semibold text-white">{t.name}</div>
                             <div className="text-sm text-slate-400">
-                              {t.department} • Semester {t.semester} • {t.year}
+                              {t.department} | Semester {t.semester} | {t.year}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge
@@ -671,6 +755,22 @@ export default function TimetablePage() {
                 </Card>
               ) : (
                 <div className="space-y-4">
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      type="button"
+                      onClick={() => exportTimetableCsv(selected)}
+                      className="bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:from-emerald-500 hover:to-green-500"
+                    >
+                      Download CSV for Excel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => exportTimetablePdf(selected)}
+                      className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-500 hover:to-cyan-500"
+                    >
+                      Download PDF
+                    </Button>
+                  </div>
                   <TimetableGrid timetable={selected} courses={courses} faculty={faculty} rooms={rooms} />
                 </div>
               )}

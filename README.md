@@ -9,11 +9,13 @@ SIHPROJECT is a professional MERN smart campus platform for MCA and college oper
 - AI-assisted timetable generation for Monday to Saturday
 - optional Sunday special class support
 - attendance management by department, semester, and section
+- lecturer attendance workspace based on timetable-assigned periods
 - holiday creation with automatic full attendance handling
 - complaint and issue management for students
-- lecturer feedback and ratings from student accounts
+- lecturer feedback with teaching, lab, and notes ratings
 - contact/help page that sends messages into the admin portal
 - hidden admin access through the lock entry on the Contact / Help page
+- hidden lecturer access through the staff key on the Contact / Help page
 
 ## User Flow
 
@@ -21,11 +23,12 @@ SIHPROJECT is a professional MERN smart campus platform for MCA and college oper
 
 - `Home`: overview of campus workflows, latest timetable preview, and feature cards
 - `Time Table Scheduler`: professional scheduler page with admin-only resource setup and AI generation
-- `Attendance`: admin-only attendance taking page
+- `Attendance`: lecturer workspace for scheduled periods and admin attendance dashboard
 - `Raise Complaint`: signed-in students can raise academic, attendance, timetable, facility, or technical issues
 - `Lecturer Feedback`: signed-in students can rate lecturers and submit structured feedback
 - `Contact / Help`: support form with phone, email, college ID, and message fields
 - `Student Login`: student sign in and sign up with unique college ID enforcement
+- `Lecturer Access`: hidden staff sign in and sign up flow, available only from the help page key
 
 ### Admin Access
 
@@ -55,14 +58,33 @@ The admin portal includes:
 - lecturer feedback review tools
 - contact/help inbox from the website
 - attendance and academic operations summary
+- lecturer approval queue for pending staff accounts
+- issue workflow states: `received`, `contacted`, `solved`
+- timetable publish workflow with CSV/Excel-style download and PDF print export
 
 ## Student Features
 
 - sign up with unique college ID
 - sign in to access complaint and feedback workflows
 - submit complaints for admin review
-- rate lecturers and send feedback
+- rate lecturers with teaching, lab, and notes scores
 - contact the college/help desk through the portal
+
+## Lecturer Features
+
+- request lecturer access with staff ID, qualification, email, phone, department, and section
+- wait for admin approval before login is allowed
+- sign in through the hidden lecturer key on the help page
+- open the lecturer attendance workspace
+- choose the scheduled period from the timetable-driven roster
+- mark attendance for the assigned department, semester, and section
+
+## Timetable Workflow
+
+- admin adds courses, classrooms, and faculty teaching assignments
+- admin generates timetable entries for Monday to Saturday with optional Sunday special classes
+- admin publishes timetables from the scheduler workspace
+- published timetables can be downloaded as CSV for Excel or printed as PDF for sharing
 
 ## Default Admin Login
 

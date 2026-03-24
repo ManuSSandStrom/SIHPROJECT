@@ -20,6 +20,7 @@ import { AdminSection } from "./components/AdminSection";
 import { AttendanceSection } from "./components/AttendanceSection";
 import { FeedbackSection } from "./components/FeedbackSection";
 import { IssuesSection } from "./components/IssuesSection";
+import { LecturerWorkspaceSection } from "./components/LecturerWorkspaceSection";
 import { FeatureCard, InputField, MiniPanel, SectionCard, StatCard, TextAreaField } from "./components/PortalUI";
 import DashboardPage from "./pages/Dashboard";
 import CoursesPage from "./pages/Courses";
@@ -56,11 +57,12 @@ const publicNav = [
   { to: "/student-access", label: "Student Login" },
 ];
 
-const emptyAuthForm = { name: "", email: "", password: "", collegeId: "", department: "MCA", semester: 1, section: "A", role: "student", phone: "" };
+const emptyStudentAuthForm = { name: "", email: "", password: "", collegeId: "", department: "MCA", semester: 1, section: "A", role: "student", phone: "" };
+const emptyLecturerAuthForm = { name: "", email: "", password: "", staffId: "", qualification: "", department: "MCA", section: "A", phone: "", role: "lecturer" };
 const emptyIssueForm = { title: "", description: "", category: "academic", priority: "medium" };
-const emptyFeedbackForm = { title: "", category: "teaching", rating: 5, lecturerId: "", lecturerName: "", message: "" };
+const emptyFeedbackForm = { title: "", category: "teaching", feedbackScope: "teaching", rating: 5, lecturerId: "", lecturerName: "", subjectName: "", department: "MCA", section: "A", semester: 1, teachingRating: 5, labRating: 5, notesRating: 5, message: "" };
 const emptyLecturerForm = { name: "", email: "", employeeId: "", department: "MCA", designation: "Lecturer", phone: "", officeLocation: "", specialization: "Cloud Computing, Data Structures", assignedSubjectName: "", assignedCourseCode: "", assignedSemester: 1, assignedSection: "A", maxHoursPerWeek: 18 };
-const emptyStudentForm = { name: "", email: "", password: "Student@123", collegeId: "", department: "MCA", semester: 1, section: "A", role: "student", phone: "" };
+const emptyStudentForm = { name: "", email: "", password: "Student@123", collegeId: "", rollNumber: "", department: "MCA", semester: 1, section: "A", role: "student", phone: "" };
 const emptyHolidayForm = { title: "", description: "", date: new Date().toISOString().slice(0, 10), department: "MCA", section: "A" };
 const emptyTimetableForm = { department: "MCA", semester: 1, academicYear: new Date().getFullYear(), includeSundaySpecialClass: true };
 const emptyCourseForm = { name: "", code: "", department: "MCA", credits: 4, semester: 1, year: new Date().getFullYear(), description: "", duration: 13, prerequisites: "", type: "lecture", hoursPerWeek: 3 };
@@ -86,8 +88,10 @@ export default function App() {
 
 function PortalApp() {
   const [portalData, setPortalData] = useState(emptyPortalData);
-  const [authMode, setAuthMode] = useState("signin");
-  const [authForm, setAuthForm] = useState(emptyAuthForm);
+  const [studentAuthMode, setStudentAuthMode] = useState("signin");
+  const [studentAuthForm, setStudentAuthForm] = useState(emptyStudentAuthForm);
+  const [lecturerAuthMode, setLecturerAuthMode] = useState("signin");
+  const [lecturerAuthForm, setLecturerAuthForm] = useState(emptyLecturerAuthForm);
   const [issueForm, setIssueForm] = useState(emptyIssueForm);
   const [feedbackForm, setFeedbackForm] = useState(emptyFeedbackForm);
   const [lecturerForm, setLecturerForm] = useState(emptyLecturerForm);
@@ -101,6 +105,7 @@ function PortalApp() {
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [attendanceRefreshToken, setAttendanceRefreshToken] = useState(0);
   const location = useLocation();
 
   useEffect(() => {
@@ -171,18 +176,51 @@ function PortalApp() {
   async function handleStudentAccess(mode) {
     try {
       if (mode === "signup") {
-        const response = await api.post("/users/signup", authForm);
+        const response = await api.post("/users/signup", { ...studentAuthForm, role: "student" });
         setCurrentUser(response.data.user);
         updateCollection("users", (items) => [response.data.user, ...items]);
+        setStudentAuthForm(emptyStudentAuthForm);
         showMessage("Student account created successfully.");
         return;
       }
 
-      const response = await api.post("/users/signin", { email: authForm.email, password: authForm.password });
+      const response = await api.post("/users/signin", { email: studentAuthForm.email, password: studentAuthForm.password });
+      if (response.data.user.role !== "student") {
+        return showMessage("Use the hidden lecturer key or admin lock for non-student accounts.");
+      }
       setCurrentUser(response.data.user);
       showMessage(`Welcome back, ${response.data.user.name}.`);
     } catch (error) {
       showMessage(error.response?.data?.error || "Authentication failed.");
+    }
+  }
+
+  async function handleLecturerAccess(mode, navigate) {
+    try {
+      if (mode === "signup") {
+        await api.post("/users/signup", {
+          ...lecturerAuthForm,
+          role: "lecturer",
+          staffId: lecturerAuthForm.staffId.toUpperCase(),
+          section: lecturerAuthForm.section.toUpperCase(),
+        });
+        setLecturerAuthForm(emptyLecturerAuthForm);
+        showMessage("Lecturer signup submitted. Admin approval is required before login.");
+        return;
+      }
+
+      const response = await api.post("/users/signin", {
+        email: lecturerAuthForm.email,
+        password: lecturerAuthForm.password,
+      });
+      if (response.data.user.role !== "lecturer") {
+        return showMessage("This account is not a lecturer account.");
+      }
+      setCurrentUser(response.data.user);
+      showMessage(`Welcome, ${response.data.user.name}.`);
+      navigate("/attendance");
+    } catch (error) {
+      showMessage(error.response?.data?.error || "Lecturer authentication failed.");
     }
   }
 
@@ -213,7 +251,12 @@ function PortalApp() {
 
   async function handleIssueStatusChange(issueId, status) {
     try {
-      const response = await api.put(`/issues/${issueId}`, { status });
+      const replyText = {
+        received: "Your issue has been received by the admin team.",
+        contacted: "The admin team has contacted or is following up on this issue.",
+        solved: "This issue has been marked as solved by the admin team.",
+      };
+      const response = await api.put(`/issues/${issueId}`, { status, adminReply: replyText[status] || "" });
       updateCollection("issues", (items) => items.map((issue) => (issue._id === issueId ? response.data : issue)));
       showMessage("Issue status updated.");
     } catch (error) {
@@ -268,7 +311,7 @@ function PortalApp() {
     event.preventDefault();
     try {
       const response = await api.post("/attendance/holiday", { ...holidayForm, markedBy: currentUser?.name || "Admin" });
-      updateCollection("holidays", (items) => [response.data.holiday, ...(items || [])]);
+      await loadPortalData();
       setHolidayForm(emptyHolidayForm);
       showMessage("Holiday created and full attendance applied.");
     } catch (error) {
@@ -278,11 +321,26 @@ function PortalApp() {
 
   async function handleBulkAttendanceSubmit(records) {
     try {
-      const response = await api.post("/attendance/bulk", { records });
-      updateCollection("attendance", (items) => [...response.data, ...(items || [])]);
+      await api.post("/attendance/bulk", { records });
+      await loadPortalData();
+      setAttendanceRefreshToken((value) => value + 1);
       showMessage("Daily attendance saved successfully.");
     } catch (error) {
       showMessage(error.response?.data?.error || "Unable to save daily attendance.");
+    }
+  }
+
+  async function handleUserStatusChange(userId, status) {
+    try {
+      const response = await api.put(`/users/${userId}`, {
+        status,
+        approvedBy: currentUser?.name || "Admin",
+      });
+      updateCollection("users", (items) => items.map((item) => (item._id === userId ? response.data.user : item)));
+      showMessage(status === "active" ? "Lecturer approved successfully." : "Lecturer status updated.");
+      await loadPortalData();
+    } catch (error) {
+      showMessage(error.response?.data?.error || "Unable to update lecturer approval.");
     }
   }
 
@@ -297,7 +355,8 @@ function PortalApp() {
   }
 
   const isAdmin = currentUser?.role === "admin";
-  const isStudent = currentUser?.role === "student" || currentUser?.role === "lecturer";
+  const isStudent = currentUser?.role === "student";
+  const isLecturer = currentUser?.role === "lecturer";
   const visibleIssues = isAdmin ? portalData.issues || [] : (portalData.issues || []).filter((item) => item.collegeId === currentUser?.collegeId);
   const visibleFeedback = isAdmin ? portalData.feedback || [] : (portalData.feedback || []).filter((item) => item.collegeId === currentUser?.collegeId);
   const timetable = portalData.timetables?.[0] || null;
@@ -306,12 +365,14 @@ function PortalApp() {
     <Routes>
       <Route path="/" element={<HomePage portalData={portalData} timetable={timetable} attendanceRate={attendanceRate} currentUser={currentUser} />} />
       <Route path="/scheduler" element={isAdmin ? <Navigate to="/admin/dashboard" replace /> : <RestrictedCard title="Scheduler access is reserved for admin workflow." description="Use the lock in Contact / Help to open the real dashboard, courses, faculty, rooms, timetables, and notifications workspace." />} />
-      <Route path="/attendance" element={<ProtectedPage allowed={isAdmin} title="Attendance management is for admin operations." description="Sign in through the admin lock to take daily attendance and manage holiday attendance."><AttendanceSection attendance={portalData.attendance || []} users={portalData.users || []} holidays={portalData.holidays || []} handleBulkAttendanceSubmit={handleBulkAttendanceSubmit} /></ProtectedPage>} />
-      <Route path="/complaints" element={<ProtectedPage allowed={Boolean(currentUser)} title="Student issue desk" description="Students can raise complaints after signing in, and the admin team can resolve them from the portal."><IssuesSection issueForm={issueForm} setIssueForm={setIssueForm} issues={visibleIssues} currentUser={currentUser} submitRecord={submitRecord} isAdmin={isAdmin} handleIssueStatusChange={handleIssueStatusChange} emptyIssueForm={emptyIssueForm} /></ProtectedPage>} />
+      <Route path="/attendance" element={<ProtectedPage allowed={isAdmin || isLecturer} title="Attendance management is available for approved staff only." description="Lecturers can mark attendance for scheduled periods, and admins can manage roster-level attendance.">{isAdmin ? <AttendanceSection attendance={portalData.attendance || []} users={portalData.users || []} holidays={portalData.holidays || []} handleBulkAttendanceSubmit={handleBulkAttendanceSubmit} /> : <LecturerWorkspaceSection currentUser={currentUser} onSubmitAttendance={handleBulkAttendanceSubmit} refreshToken={attendanceRefreshToken} showMessage={showMessage} />}</ProtectedPage>} />
+      <Route path="/complaints" element={<ProtectedPage allowed={isStudent || isAdmin} title="Student issue desk" description="Students can raise complaints after signing in, and the admin team can resolve them from the portal."><IssuesSection issueForm={issueForm} setIssueForm={setIssueForm} issues={visibleIssues} currentUser={currentUser} submitRecord={submitRecord} isAdmin={isAdmin} handleIssueStatusChange={handleIssueStatusChange} emptyIssueForm={emptyIssueForm} /></ProtectedPage>} />
       <Route path="/feedback" element={<ProtectedPage allowed={isStudent || isAdmin} title="Lecturer feedback" description="Signed-in students can rate lecturers and send structured feedback."><FeedbackSection feedbackForm={feedbackForm} setFeedbackForm={setFeedbackForm} feedback={visibleFeedback} currentUser={currentUser} submitRecord={submitRecord} emptyFeedbackForm={emptyFeedbackForm} faculty={portalData.faculty || []} /></ProtectedPage>} />
       <Route path="/contact" element={<ContactPage contactForm={contactForm} setContactForm={setContactForm} handleContactSubmit={handleContactSubmit} />} />
-      <Route path="/student-access" element={<StudentAccessPage authMode={authMode} setAuthMode={setAuthMode} authForm={authForm} setAuthForm={setAuthForm} handleStudentAccess={handleStudentAccess} currentUser={currentUser} />} />
+      <Route path="/student-access" element={<StudentAccessPage authMode={studentAuthMode} setAuthMode={setStudentAuthMode} authForm={studentAuthForm} setAuthForm={setStudentAuthForm} handleStudentAccess={handleStudentAccess} currentUser={currentUser} />} />
+      <Route path="/lecturer-access" element={<LecturerAccessPage authMode={lecturerAuthMode} setAuthMode={setLecturerAuthMode} authForm={lecturerAuthForm} setAuthForm={setLecturerAuthForm} handleLecturerAccess={handleLecturerAccess} currentUser={currentUser} />} />
       <Route path="/admin-access" element={<AdminAccessPage onSubmit={handleAdminAccess} />} />
+      <Route path="/lecturer-portal" element={isLecturer ? <Navigate to="/attendance" replace /> : <RestrictedCard title="Lecturer access is protected." description="Use the hidden staff key from Contact / Help to sign in after admin approval." />} />
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
       <Route path="/admin/dashboard" element={<ProtectedPage allowed={isAdmin} title="Admin dashboard" description="Only signed-in admins can access the workspace behind the contact-page lock."><DashboardPage /></ProtectedPage>} />
       <Route path="/admin/courses" element={<ProtectedPage allowed={isAdmin} title="Courses management" description="Only signed-in admins can manage scheduler resources."><CoursesPage /></ProtectedPage>} />
@@ -319,7 +380,7 @@ function PortalApp() {
       <Route path="/admin/rooms" element={<ProtectedPage allowed={isAdmin} title="Room management" description="Only signed-in admins can manage scheduler resources."><RoomsPage /></ProtectedPage>} />
       <Route path="/admin/timetables" element={<ProtectedPage allowed={isAdmin} title="Timetable management" description="Only signed-in admins can manage scheduler resources."><TimetablePage /></ProtectedPage>} />
       <Route path="/admin/notifications" element={<ProtectedPage allowed={isAdmin} title="Notification management" description="Only signed-in admins can manage scheduler resources."><NotificationsPage /></ProtectedPage>} />
-      <Route path="/admin/operations" element={<ProtectedPage allowed={isAdmin} title="Admin operations center" description="Student management, holiday attendance, support inbox, feedback, and issue resolution."><AdminSection lecturerForm={lecturerForm} setLecturerForm={setLecturerForm} studentForm={studentForm} setStudentForm={setStudentForm} holidayForm={holidayForm} setHolidayForm={setHolidayForm} courseForm={courseForm} setCourseForm={setCourseForm} roomForm={roomForm} setRoomForm={setRoomForm} faculty={portalData.faculty || []} users={portalData.users || []} courses={portalData.courses || []} rooms={portalData.rooms || []} issues={portalData.issues || []} feedback={portalData.feedback || []} holidays={portalData.holidays || []} attendance={portalData.attendance || []} contactMessages={portalData.contactMessages || []} dashboard={portalData.dashboard} handleCreateStudent={handleCreateStudent} handleCreateHoliday={handleCreateHoliday} submitRecord={submitRecord} emptyLecturerForm={emptyLecturerForm} emptyCourseForm={emptyCourseForm} emptyRoomForm={emptyRoomForm} handleFeedbackStatusChange={handleFeedbackStatusChange} handleIssueStatusChange={handleIssueStatusChange} handleContactStatusChange={handleContactStatusChange} /></ProtectedPage>} />
+      <Route path="/admin/operations" element={<ProtectedPage allowed={isAdmin} title="Admin operations center" description="Student management, holiday attendance, support inbox, feedback, lecturer approval, and issue resolution."><AdminSection lecturerForm={lecturerForm} setLecturerForm={setLecturerForm} studentForm={studentForm} setStudentForm={setStudentForm} holidayForm={holidayForm} setHolidayForm={setHolidayForm} courseForm={courseForm} setCourseForm={setCourseForm} roomForm={roomForm} setRoomForm={setRoomForm} faculty={portalData.faculty || []} users={portalData.users || []} courses={portalData.courses || []} rooms={portalData.rooms || []} issues={portalData.issues || []} feedback={portalData.feedback || []} holidays={portalData.holidays || []} attendance={portalData.attendance || []} contactMessages={portalData.contactMessages || []} dashboard={portalData.dashboard} handleCreateStudent={handleCreateStudent} handleCreateHoliday={handleCreateHoliday} submitRecord={submitRecord} emptyLecturerForm={emptyLecturerForm} emptyCourseForm={emptyCourseForm} emptyRoomForm={emptyRoomForm} handleFeedbackStatusChange={handleFeedbackStatusChange} handleIssueStatusChange={handleIssueStatusChange} handleContactStatusChange={handleContactStatusChange} handleUserStatusChange={handleUserStatusChange} /></ProtectedPage>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -370,6 +431,7 @@ function Header({ currentUser, signOut, menuOpen, setMenuOpen }) {
         <div className="hidden items-center gap-3 lg:flex">
           {currentUser ? <span className="pill">{currentUser.name}</span> : <Link className="secondary-button no-underline" to="/student-access">Sign in</Link>}
           {currentUser?.role === "admin" ? <Link className="secondary-button no-underline" to="/admin/dashboard">Admin workspace</Link> : null}
+          {currentUser?.role === "lecturer" ? <Link className="secondary-button no-underline" to="/attendance">Lecturer workspace</Link> : null}
           {currentUser ? <button type="button" className="primary-button" onClick={signOut}>Sign out</button> : null}
         </div>
       </div>
@@ -457,6 +519,11 @@ function ContactPage({ contactForm, setContactForm, handleContactSubmit }) {
             <p className="mt-2 text-sm leading-6 text-slate-600">The admin portal is hidden from the public menu. Use the secure lock below to open the admin sign-in page.</p>
             <Link className="primary-button mt-4 no-underline" to="/admin-access"><LockKeyhole size={16} />Open admin lock</Link>
           </div>
+          <div className="rounded-3xl border border-sky-100 bg-white p-5">
+            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-700">Lecturer key</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Lecturers use this hidden key to sign up with staff details and log in only after admin approval.</p>
+            <Link className="secondary-button mt-4 no-underline" to="/lecturer-access"><LockKeyhole size={16} />Open lecturer access</Link>
+          </div>
         </div>
       </SectionCard>
 
@@ -519,6 +586,51 @@ function StudentAccessPage({ authMode, setAuthMode, authForm, setAuthForm, handl
   );
 }
 
+function LecturerAccessPage({ authMode, setAuthMode, authForm, setAuthForm, handleLecturerAccess, currentUser }) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="grid gap-6 pt-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <SectionCard title="Lecturer access" description="Lecturers sign up with staff details, wait for admin approval, and then log in to mark attendance for scheduled classes.">
+        <div className="space-y-4">
+          <FeatureCard icon={LockKeyhole} title="Approval workflow" description="A lecturer account stays pending until the admin approves it from the operations dashboard." />
+          <FeatureCard icon={ClipboardCheck} title="Attendance by timetable" description="Approved lecturers see the periods assigned to them and mark attendance from the scheduled department and section." />
+          <FeatureCard icon={BookOpen} title="Mapped teaching data" description="Admin links lecturers to departments, sections, and subjects so student feedback stays staff-specific." />
+        </div>
+      </SectionCard>
+
+      <SectionCard title={authMode === "signin" ? "Lecturer sign in" : "Request lecturer access"} description="Hidden staff access built for internal college use.">
+        <div className="segmented-control">
+          <button type="button" className={authMode === "signin" ? "active" : ""} onClick={() => setAuthMode("signin")}>Sign in</button>
+          <button type="button" className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>Sign up</button>
+        </div>
+        <form className="mt-5 grid gap-3" onSubmit={(event) => { event.preventDefault(); handleLecturerAccess(authMode, navigate); }}>
+          {authMode === "signup" ? <InputField label="Lecturer name" value={authForm.name} onChange={(value) => setAuthForm({ ...authForm, name: value })} /> : null}
+          <div className="grid gap-3 md:grid-cols-2">
+            <InputField label="Email" type="email" value={authForm.email} onChange={(value) => setAuthForm({ ...authForm, email: value })} />
+            <InputField label="Password" type="password" value={authForm.password} onChange={(value) => setAuthForm({ ...authForm, password: value })} />
+          </div>
+          {authMode === "signup" ? (
+            <>
+              <div className="grid gap-3 md:grid-cols-2">
+                <InputField label="Staff ID" value={authForm.staffId} onChange={(value) => setAuthForm({ ...authForm, staffId: value.toUpperCase() })} />
+                <InputField label="Phone" value={authForm.phone} onChange={(value) => setAuthForm({ ...authForm, phone: value })} />
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <InputField label="Qualification" value={authForm.qualification} onChange={(value) => setAuthForm({ ...authForm, qualification: value })} />
+                <InputField label="Department" value={authForm.department} onChange={(value) => setAuthForm({ ...authForm, department: value })} />
+                <InputField label="Section" value={authForm.section} onChange={(value) => setAuthForm({ ...authForm, section: value.toUpperCase() })} />
+              </div>
+            </>
+          ) : null}
+          <button type="submit" className="primary-button justify-center">{authMode === "signin" ? "Enter lecturer workspace" : "Submit lecturer approval request"}</button>
+        </form>
+        {currentUser?.role === "lecturer" ? <div className="mt-5 rounded-3xl border border-sky-100 bg-sky-50/80 p-4 text-sm text-slate-600">Signed in as <span className="font-semibold text-slate-950">{currentUser.name}</span>.</div> : null}
+      </SectionCard>
+    </div>
+  );
+}
+
 function AdminAccessPage({ onSubmit }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -549,7 +661,7 @@ function RestrictedCard({ title, description }) {
   return (
     <SectionCard title={title} description={description}>
       <div className="rounded-3xl border border-sky-100 bg-sky-50/80 p-5">
-        <p className="text-sm leading-7 text-slate-600">Use student login for complaints and lecturer feedback, or open the admin lock from the Contact / Help page for attendance, scheduling, and admin controls.</p>
+        <p className="text-sm leading-7 text-slate-600">Use student login for complaints and lecturer feedback. For staff workflows, open the lecturer key or admin lock from the Contact / Help page.</p>
       </div>
     </SectionCard>
   );

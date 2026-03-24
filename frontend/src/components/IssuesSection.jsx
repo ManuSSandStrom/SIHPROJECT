@@ -4,7 +4,7 @@ export function IssuesSection({ issueForm, setIssueForm, issues, currentUser, su
   return (
     <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
       <SectionCard title="Issue management" description="Students can raise attendance, timetable, academic, or facility issues and admins can track each case.">
-        <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); submitRecord("issues", "/issues", { ...issueForm, studentId: currentUser?._id, studentName: currentUser?.name || "Guest Student", collegeId: currentUser?.collegeId || "NA", status: "open" }, () => setIssueForm(emptyIssueForm)); }}>
+        <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); submitRecord("issues", "/issues", { ...issueForm, studentId: currentUser?._id, studentName: currentUser?.name || "Guest Student", collegeId: currentUser?.collegeId || "NA", status: "received" }, () => setIssueForm(emptyIssueForm)); }}>
           <InputField label="Issue title" value={issueForm.title} onChange={(value) => setIssueForm({ ...issueForm, title: value })} />
           <div className="grid gap-3 md:grid-cols-2">
             <SelectField label="Category" value={issueForm.category} onChange={(value) => setIssueForm({ ...issueForm, category: value })} options={[{ label: "Academic", value: "academic" }, { label: "Attendance", value: "attendance" }, { label: "Timetable", value: "timetable" }, { label: "Facilities", value: "facilities" }, { label: "Technical", value: "technical" }, { label: "Other", value: "other" }]} />
@@ -26,7 +26,13 @@ export function IssuesSection({ issueForm, setIssueForm, issues, currentUser, su
               </div>
               <div className="flex flex-col items-end gap-2">
                 <span className="pill">{issue.status}</span>
-                {isAdmin ? <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleIssueStatusChange(issue._id, issue.status === "resolved" ? "closed" : "resolved")}>{issue.status === "resolved" ? "Close" : "Resolve"}</button> : null}
+                {isAdmin ? (
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleIssueStatusChange(issue._id, "received")}>Received</button>
+                    <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleIssueStatusChange(issue._id, "contacted")}>Contacted</button>
+                    <button type="button" className="secondary-button px-3 py-2 text-sm" onClick={() => handleIssueStatusChange(issue._id, "solved")}>Solved</button>
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}

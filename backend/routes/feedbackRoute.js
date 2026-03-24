@@ -20,7 +20,16 @@ feedbackRouter.get("/", async (req, res) => {
 
 feedbackRouter.post("/", async (req, res) => {
   try {
-    const feedback = await Feedback.create(req.body);
+    const payload = { ...req.body };
+    if (!payload.rating) {
+      const ratings = [payload.teachingRating, payload.labRating, payload.notesRating]
+        .map((item) => Number(item))
+        .filter((item) => Number.isFinite(item) && item > 0);
+      if (ratings.length > 0) {
+        payload.rating = Number((ratings.reduce((sum, item) => sum + item, 0) / ratings.length).toFixed(1));
+      }
+    }
+    const feedback = await Feedback.create(payload);
     res.status(201).json(feedback);
   } catch (error) {
     console.error("Error creating feedback:", error);
