@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Send, X, Bot } from "lucide-react";
 import ReactMarkdown from 'react-markdown'; // Import the markdown renderer
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/$/, "");
+
 export function Chatbot({ isOpen, onClose, context }) {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
@@ -38,7 +40,7 @@ export function Chatbot({ isOpen, onClose, context }) {
 
     try {
       // API call to your backend AI chat route
-      const res = await axios.post("http://localhost:5000/api/ai/chat", {
+      const res = await axios.post(`${API_BASE_URL}/api/ai/chat`, {
         message: currentInput,
         context: context, // Pass the dashboard context to the AI
       });

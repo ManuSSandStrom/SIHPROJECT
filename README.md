@@ -33,6 +33,14 @@ SIHPROJECT is a professional MERN smart campus platform for MCA and college oper
 - the admin lock is available only from the `Contact / Help` page
 - clicking the lock opens the admin sign-in page
 - after admin login, the admin portal becomes accessible
+- the scheduler opens into real admin pages for:
+  - dashboard
+  - courses
+  - faculty
+  - rooms
+  - timetables
+  - notifications
+  - operations
 
 ## Admin Portal
 

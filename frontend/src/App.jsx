@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   BadgeCheck,
   Bell,
   BookOpen,
-  Building2,
   CalendarDays,
   ClipboardCheck,
-  GraduationCap,
   LockKeyhole,
   Mail,
   Menu,
@@ -23,11 +21,30 @@ import { AttendanceSection } from "./components/AttendanceSection";
 import { FeedbackSection } from "./components/FeedbackSection";
 import { IssuesSection } from "./components/IssuesSection";
 import { FeatureCard, InputField, MiniPanel, SectionCard, StatCard, TextAreaField } from "./components/PortalUI";
-import { TimetableSection } from "./components/TimetableSection";
-import { demoPortalData, generateDemoTimetable } from "./lib/demoData";
+import DashboardPage from "./pages/Dashboard";
+import CoursesPage from "./pages/Courses";
+import FacultyPage from "./pages/Faculty";
+import NotificationsPage from "./pages/Notifications";
+import RoomsPage from "./pages/Rooms";
+import TimetablePage from "./pages/Timetable";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/$/, "");
 const api = axios.create({ baseURL: `${API_BASE_URL}/api`, timeout: 10000 });
+
+const emptyPortalData = {
+  dashboard: { kpis: {} },
+  users: [],
+  faculty: [],
+  rooms: [],
+  timetables: [],
+  attendance: [],
+  issues: [],
+  feedback: [],
+  notifications: [],
+  courses: [],
+  holidays: [],
+  contactMessages: [],
+};
 
 const publicNav = [
   { to: "/", label: "Home" },
@@ -68,7 +85,7 @@ export default function App() {
 }
 
 function PortalApp() {
-  const [portalData, setPortalData] = useState(demoPortalData);
+  const [portalData, setPortalData] = useState(emptyPortalData);
   const [authMode, setAuthMode] = useState("signin");
   const [authForm, setAuthForm] = useState(emptyAuthForm);
   const [issueForm, setIssueForm] = useState(emptyIssueForm);
@@ -83,8 +100,8 @@ function PortalApp() {
   const [currentUser, setCurrentUser] = useState(() => readStoredUser());
   const [loading, setLoading] = useState(true);
   const [actionMessage, setActionMessage] = useState("");
-  const [demoMode, setDemoMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     loadPortalData();
@@ -142,13 +159,10 @@ function PortalApp() {
         courses: courses.data,
         holidays: holidays.data,
         contactMessages: contactMessages.data,
-        currentUser: demoPortalData.currentUser,
       });
-      setDemoMode(false);
     } catch {
-      setPortalData(demoPortalData);
-      setDemoMode(true);
-      showMessage("Live backend is not reachable right now, so the portal is using demo data.");
+      setPortalData(emptyPortalData);
+      showMessage("Unable to reach backend services right now.");
     } finally {
       setLoading(false);
     }
@@ -157,25 +171,11 @@ function PortalApp() {
   async function handleStudentAccess(mode) {
     try {
       if (mode === "signup") {
-        if (demoMode) {
-          const duplicate = (portalData.users || []).some((item) => item.collegeId === authForm.collegeId.trim().toUpperCase());
-          if (duplicate) return showMessage("That college ID is already registered.");
-          const created = { _id: String(Date.now()), name: authForm.name, email: authForm.email.toLowerCase(), role: "student", collegeId: authForm.collegeId.trim().toUpperCase(), department: authForm.department, semester: Number(authForm.semester), section: authForm.section, phone: authForm.phone };
-          updateCollection("users", (items) => [created, ...items]);
-          setCurrentUser(created);
-          return showMessage("Student account created successfully.");
-        }
         const response = await api.post("/users/signup", authForm);
         setCurrentUser(response.data.user);
         updateCollection("users", (items) => [response.data.user, ...items]);
         showMessage("Student account created successfully.");
         return;
-      }
-
-      if (demoMode) {
-        const user = (portalData.users || []).find((item) => item.email === authForm.email.toLowerCase()) || demoPortalData.users[1];
-        setCurrentUser(user);
-        return showMessage(`Welcome back, ${user.name}.`);
       }
 
       const response = await api.post("/users/signin", { email: authForm.email, password: authForm.password });
@@ -188,22 +188,13 @@ function PortalApp() {
 
   async function handleAdminAccess(email, password, navigate) {
     try {
-      if (demoMode) {
-        if (email === "admin@blueboard.edu" && password === "Admin@123") {
-          setCurrentUser(demoPortalData.currentUser);
-          showMessage("Admin access granted.");
-          navigate("/admin");
-          return;
-        }
-        return showMessage("Invalid admin credentials.");
-      }
       const response = await api.post("/users/signin", { email, password });
       if (response.data.user.role !== "admin") {
         return showMessage("This account does not have admin access.");
       }
       setCurrentUser(response.data.user);
       showMessage("Admin access granted.");
-      navigate("/admin");
+      navigate("/admin/dashboard");
     } catch (error) {
       showMessage(error.response?.data?.error || "Admin sign in failed.");
     }
@@ -211,12 +202,8 @@ function PortalApp() {
 
   async function submitRecord(collection, url, payload, reset) {
     try {
-      if (demoMode) {
-        updateCollection(collection, (items) => [{ ...payload, _id: String(Date.now()), createdAt: new Date().toISOString() }, ...(items || [])]);
-      } else {
-        const response = await api.post(url, payload);
-        updateCollection(collection, (items) => [response.data, ...(items || [])]);
-      }
+      const response = await api.post(url, payload);
+      updateCollection(collection, (items) => [response.data, ...(items || [])]);
       reset();
       showMessage("Saved successfully.");
     } catch (error) {
@@ -226,12 +213,8 @@ function PortalApp() {
 
   async function handleIssueStatusChange(issueId, status) {
     try {
-      if (demoMode) {
-        updateCollection("issues", (items) => items.map((issue) => (issue._id === issueId ? { ...issue, status } : issue)));
-      } else {
-        const response = await api.put(`/issues/${issueId}`, { status });
-        updateCollection("issues", (items) => items.map((issue) => (issue._id === issueId ? response.data : issue)));
-      }
+      const response = await api.put(`/issues/${issueId}`, { status });
+      updateCollection("issues", (items) => items.map((issue) => (issue._id === issueId ? response.data : issue)));
       showMessage("Issue status updated.");
     } catch (error) {
       showMessage(error.response?.data?.error || "Unable to update issue.");
@@ -240,12 +223,8 @@ function PortalApp() {
 
   async function handleFeedbackStatusChange(feedbackId, status) {
     try {
-      if (demoMode) {
-        updateCollection("feedback", (items) => items.map((item) => (item._id === feedbackId ? { ...item, status } : item)));
-      } else {
-        const response = await api.put(`/feedback/${feedbackId}`, { status });
-        updateCollection("feedback", (items) => items.map((item) => (item._id === feedbackId ? response.data : item)));
-      }
+      const response = await api.put(`/feedback/${feedbackId}`, { status });
+      updateCollection("feedback", (items) => items.map((item) => (item._id === feedbackId ? response.data : item)));
       showMessage("Feedback status updated.");
     } catch (error) {
       showMessage(error.response?.data?.error || "Unable to update feedback.");
@@ -254,12 +233,8 @@ function PortalApp() {
 
   async function handleContactStatusChange(messageId, status) {
     try {
-      if (demoMode) {
-        updateCollection("contactMessages", (items) => items.map((item) => (item._id === messageId ? { ...item, status } : item)));
-      } else {
-        const response = await api.put(`/contact-messages/${messageId}`, { status });
-        updateCollection("contactMessages", (items) => items.map((item) => (item._id === messageId ? response.data : item)));
-      }
+      const response = await api.put(`/contact-messages/${messageId}`, { status });
+      updateCollection("contactMessages", (items) => items.map((item) => (item._id === messageId ? response.data : item)));
       showMessage("Contact message updated.");
     } catch (error) {
       showMessage(error.response?.data?.error || "Unable to update contact message.");
@@ -269,12 +244,8 @@ function PortalApp() {
   async function handleTimetableGenerate(event) {
     event.preventDefault();
     try {
-      if (demoMode) {
-        updateCollection("timetables", (items) => [generateDemoTimetable(timetableForm, portalData.courses || [], portalData.faculty || []), ...(items || [])]);
-      } else {
-        const response = await api.post("/timetables/generate", timetableForm);
-        updateCollection("timetables", (items) => [response.data, ...(items || [])]);
-      }
+      const response = await api.post("/timetables/generate", timetableForm);
+      updateCollection("timetables", (items) => [response.data, ...(items || [])]);
       showMessage("Timetable generated for Monday to Saturday with Sunday special support.");
     } catch (error) {
       showMessage(error.response?.data?.error || "Unable to generate timetable.");
@@ -284,13 +255,8 @@ function PortalApp() {
   async function handleCreateStudent(event) {
     event.preventDefault();
     try {
-      if (demoMode) {
-        const created = { ...studentForm, _id: String(Date.now()), createdAt: new Date().toISOString() };
-        updateCollection("users", (items) => [created, ...(items || [])]);
-      } else {
-        const response = await api.post("/users/signup", studentForm);
-        updateCollection("users", (items) => [response.data.user, ...(items || [])]);
-      }
+      const response = await api.post("/users/signup", studentForm);
+      updateCollection("users", (items) => [response.data.user, ...(items || [])]);
       setStudentForm(emptyStudentForm);
       showMessage("Student added and available for attendance.");
     } catch (error) {
@@ -301,12 +267,8 @@ function PortalApp() {
   async function handleCreateHoliday(event) {
     event.preventDefault();
     try {
-      if (demoMode) {
-        updateCollection("holidays", (items) => [{ ...holidayForm, _id: String(Date.now()) }, ...(items || [])]);
-      } else {
-        const response = await api.post("/attendance/holiday", { ...holidayForm, markedBy: currentUser?.name || "Admin" });
-        updateCollection("holidays", (items) => [response.data.holiday, ...(items || [])]);
-      }
+      const response = await api.post("/attendance/holiday", { ...holidayForm, markedBy: currentUser?.name || "Admin" });
+      updateCollection("holidays", (items) => [response.data.holiday, ...(items || [])]);
       setHolidayForm(emptyHolidayForm);
       showMessage("Holiday created and full attendance applied.");
     } catch (error) {
@@ -316,12 +278,8 @@ function PortalApp() {
 
   async function handleBulkAttendanceSubmit(records) {
     try {
-      if (demoMode) {
-        updateCollection("attendance", (items) => [...records.map((record) => ({ ...record, _id: `${record.studentId}-${Date.now()}` })), ...(items || [])]);
-      } else {
-        const response = await api.post("/attendance/bulk", { records });
-        updateCollection("attendance", (items) => [...response.data, ...(items || [])]);
-      }
+      const response = await api.post("/attendance/bulk", { records });
+      updateCollection("attendance", (items) => [...response.data, ...(items || [])]);
       showMessage("Daily attendance saved successfully.");
     } catch (error) {
       showMessage(error.response?.data?.error || "Unable to save daily attendance.");
@@ -342,8 +300,39 @@ function PortalApp() {
   const isStudent = currentUser?.role === "student" || currentUser?.role === "lecturer";
   const visibleIssues = isAdmin ? portalData.issues || [] : (portalData.issues || []).filter((item) => item.collegeId === currentUser?.collegeId);
   const visibleFeedback = isAdmin ? portalData.feedback || [] : (portalData.feedback || []).filter((item) => item.collegeId === currentUser?.collegeId);
-  const timetable = portalData.timetables?.[0] || demoPortalData.timetables[0];
+  const timetable = portalData.timetables?.[0] || null;
   const attendanceRate = portalData.dashboard?.kpis?.attendanceRate || Math.round((((portalData.attendance || []).filter((item) => item.status === "present").length || 0) / ((portalData.attendance || []).length || 1)) * 100);
+  const routeContent = (
+    <Routes>
+      <Route path="/" element={<HomePage portalData={portalData} timetable={timetable} attendanceRate={attendanceRate} currentUser={currentUser} />} />
+      <Route path="/scheduler" element={isAdmin ? <Navigate to="/admin/dashboard" replace /> : <RestrictedCard title="Scheduler access is reserved for admin workflow." description="Use the lock in Contact / Help to open the real dashboard, courses, faculty, rooms, timetables, and notifications workspace." />} />
+      <Route path="/attendance" element={<ProtectedPage allowed={isAdmin} title="Attendance management is for admin operations." description="Sign in through the admin lock to take daily attendance and manage holiday attendance."><AttendanceSection attendance={portalData.attendance || []} users={portalData.users || []} holidays={portalData.holidays || []} handleBulkAttendanceSubmit={handleBulkAttendanceSubmit} /></ProtectedPage>} />
+      <Route path="/complaints" element={<ProtectedPage allowed={Boolean(currentUser)} title="Student issue desk" description="Students can raise complaints after signing in, and the admin team can resolve them from the portal."><IssuesSection issueForm={issueForm} setIssueForm={setIssueForm} issues={visibleIssues} currentUser={currentUser} submitRecord={submitRecord} isAdmin={isAdmin} handleIssueStatusChange={handleIssueStatusChange} emptyIssueForm={emptyIssueForm} /></ProtectedPage>} />
+      <Route path="/feedback" element={<ProtectedPage allowed={isStudent || isAdmin} title="Lecturer feedback" description="Signed-in students can rate lecturers and send structured feedback."><FeedbackSection feedbackForm={feedbackForm} setFeedbackForm={setFeedbackForm} feedback={visibleFeedback} currentUser={currentUser} submitRecord={submitRecord} emptyFeedbackForm={emptyFeedbackForm} faculty={portalData.faculty || []} /></ProtectedPage>} />
+      <Route path="/contact" element={<ContactPage contactForm={contactForm} setContactForm={setContactForm} handleContactSubmit={handleContactSubmit} />} />
+      <Route path="/student-access" element={<StudentAccessPage authMode={authMode} setAuthMode={setAuthMode} authForm={authForm} setAuthForm={setAuthForm} handleStudentAccess={handleStudentAccess} currentUser={currentUser} />} />
+      <Route path="/admin-access" element={<AdminAccessPage onSubmit={handleAdminAccess} />} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/admin/dashboard" element={<ProtectedPage allowed={isAdmin} title="Admin dashboard" description="Only signed-in admins can access the workspace behind the contact-page lock."><DashboardPage /></ProtectedPage>} />
+      <Route path="/admin/courses" element={<ProtectedPage allowed={isAdmin} title="Courses management" description="Only signed-in admins can manage scheduler resources."><CoursesPage /></ProtectedPage>} />
+      <Route path="/admin/faculty" element={<ProtectedPage allowed={isAdmin} title="Faculty management" description="Only signed-in admins can manage scheduler resources."><FacultyPage /></ProtectedPage>} />
+      <Route path="/admin/rooms" element={<ProtectedPage allowed={isAdmin} title="Room management" description="Only signed-in admins can manage scheduler resources."><RoomsPage /></ProtectedPage>} />
+      <Route path="/admin/timetables" element={<ProtectedPage allowed={isAdmin} title="Timetable management" description="Only signed-in admins can manage scheduler resources."><TimetablePage /></ProtectedPage>} />
+      <Route path="/admin/notifications" element={<ProtectedPage allowed={isAdmin} title="Notification management" description="Only signed-in admins can manage scheduler resources."><NotificationsPage /></ProtectedPage>} />
+      <Route path="/admin/operations" element={<ProtectedPage allowed={isAdmin} title="Admin operations center" description="Student management, holiday attendance, support inbox, feedback, and issue resolution."><AdminSection lecturerForm={lecturerForm} setLecturerForm={setLecturerForm} studentForm={studentForm} setStudentForm={setStudentForm} holidayForm={holidayForm} setHolidayForm={setHolidayForm} courseForm={courseForm} setCourseForm={setCourseForm} roomForm={roomForm} setRoomForm={setRoomForm} faculty={portalData.faculty || []} users={portalData.users || []} courses={portalData.courses || []} rooms={portalData.rooms || []} issues={portalData.issues || []} feedback={portalData.feedback || []} holidays={portalData.holidays || []} attendance={portalData.attendance || []} contactMessages={portalData.contactMessages || []} dashboard={portalData.dashboard} handleCreateStudent={handleCreateStudent} handleCreateHoliday={handleCreateHoliday} submitRecord={submitRecord} emptyLecturerForm={emptyLecturerForm} emptyCourseForm={emptyCourseForm} emptyRoomForm={emptyRoomForm} handleFeedbackStatusChange={handleFeedbackStatusChange} handleIssueStatusChange={handleIssueStatusChange} handleContactStatusChange={handleContactStatusChange} /></ProtectedPage>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+
+  if (location.pathname.startsWith("/admin/")) {
+    return (
+      <>
+        {actionMessage ? <div className="fixed left-4 right-4 top-4 z-50 rounded-2xl border border-sky-100 bg-white/95 px-4 py-3 text-sm font-medium text-sky-800 shadow-xl backdrop-blur-sm md:left-auto md:right-4 md:w-[420px]">{actionMessage}</div> : null}
+        {routeContent}
+        {loading ? <div className="fixed inset-0 z-40 grid place-items-center bg-slate-950/20 backdrop-blur-sm"><div className="rounded-3xl border border-slate-700/50 bg-slate-900/90 px-8 py-5 text-sm font-semibold text-cyan-200 shadow-2xl">Loading admin workspace...</div></div> : null}
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,#f8fbff_45%,#eef6ff_100%)] text-slate-900">
@@ -352,19 +341,7 @@ function PortalApp() {
       <div className="mx-auto max-w-[1480px] px-4 pb-10 pt-4 md:px-6 lg:px-8">
         <Header currentUser={currentUser} signOut={signOut} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
         {actionMessage ? <div className="status-banner">{actionMessage}</div> : null}
-        {demoMode ? <div className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">Demo mode is active because the backend is not reachable right now.</div> : null}
-        <Routes>
-          <Route path="/" element={<HomePage portalData={portalData} timetable={timetable} attendanceRate={attendanceRate} currentUser={currentUser} />} />
-          <Route path="/scheduler" element={<SchedulerPage isAdmin={isAdmin} timetable={timetable} timetableForm={timetableForm} setTimetableForm={setTimetableForm} handleTimetableGenerate={handleTimetableGenerate} courseForm={courseForm} setCourseForm={setCourseForm} roomForm={roomForm} setRoomForm={setRoomForm} lecturerForm={lecturerForm} setLecturerForm={setLecturerForm} submitRecord={submitRecord} portalData={portalData} />} />
-          <Route path="/attendance" element={<ProtectedPage allowed={isAdmin} title="Attendance management is for admin operations." description="Sign in through the admin lock to take daily attendance and manage holiday attendance."><AttendanceSection attendance={portalData.attendance || []} users={portalData.users || []} holidays={portalData.holidays || []} handleBulkAttendanceSubmit={handleBulkAttendanceSubmit} /></ProtectedPage>} />
-          <Route path="/complaints" element={<ProtectedPage allowed={Boolean(currentUser)} title="Student issue desk" description="Students can raise complaints after signing in, and the admin team can resolve them from the portal."><IssuesSection issueForm={issueForm} setIssueForm={setIssueForm} issues={visibleIssues} currentUser={currentUser} submitRecord={submitRecord} isAdmin={isAdmin} handleIssueStatusChange={handleIssueStatusChange} emptyIssueForm={emptyIssueForm} /></ProtectedPage>} />
-          <Route path="/feedback" element={<ProtectedPage allowed={isStudent || isAdmin} title="Lecturer feedback" description="Signed-in students can rate lecturers and send structured feedback."><FeedbackSection feedbackForm={feedbackForm} setFeedbackForm={setFeedbackForm} feedback={visibleFeedback} currentUser={currentUser} submitRecord={submitRecord} emptyFeedbackForm={emptyFeedbackForm} faculty={portalData.faculty || []} /></ProtectedPage>} />
-          <Route path="/contact" element={<ContactPage contactForm={contactForm} setContactForm={setContactForm} handleContactSubmit={handleContactSubmit} />} />
-          <Route path="/student-access" element={<StudentAccessPage authMode={authMode} setAuthMode={setAuthMode} authForm={authForm} setAuthForm={setAuthForm} handleStudentAccess={handleStudentAccess} currentUser={currentUser} />} />
-          <Route path="/admin-access" element={<AdminAccessPage onSubmit={handleAdminAccess} />} />
-          <Route path="/admin" element={<ProtectedPage allowed={isAdmin} title="Admin operations center" description="Only signed-in admins can access the workspace behind the contact-page lock."><AdminSection lecturerForm={lecturerForm} setLecturerForm={setLecturerForm} studentForm={studentForm} setStudentForm={setStudentForm} holidayForm={holidayForm} setHolidayForm={setHolidayForm} courseForm={courseForm} setCourseForm={setCourseForm} roomForm={roomForm} setRoomForm={setRoomForm} faculty={portalData.faculty || []} users={portalData.users || []} courses={portalData.courses || []} rooms={portalData.rooms || []} issues={portalData.issues || []} feedback={portalData.feedback || []} holidays={portalData.holidays || []} attendance={portalData.attendance || []} contactMessages={portalData.contactMessages || []} dashboard={portalData.dashboard} handleCreateStudent={handleCreateStudent} handleCreateHoliday={handleCreateHoliday} submitRecord={submitRecord} emptyLecturerForm={emptyLecturerForm} emptyCourseForm={emptyCourseForm} emptyRoomForm={emptyRoomForm} handleFeedbackStatusChange={handleFeedbackStatusChange} handleIssueStatusChange={handleIssueStatusChange} handleContactStatusChange={handleContactStatusChange} /></ProtectedPage>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        {routeContent}
       </div>
       {loading ? <div className="fixed inset-0 grid place-items-center bg-slate-950/10 backdrop-blur-sm"><div className="rounded-3xl border border-white/80 bg-white px-8 py-5 text-sm font-semibold text-sky-800 shadow-2xl">Loading MCA campus workspace...</div></div> : null}
     </div>
@@ -392,6 +369,7 @@ function Header({ currentUser, signOut, menuOpen, setMenuOpen }) {
         </nav>
         <div className="hidden items-center gap-3 lg:flex">
           {currentUser ? <span className="pill">{currentUser.name}</span> : <Link className="secondary-button no-underline" to="/student-access">Sign in</Link>}
+          {currentUser?.role === "admin" ? <Link className="secondary-button no-underline" to="/admin/dashboard">Admin workspace</Link> : null}
           {currentUser ? <button type="button" className="primary-button" onClick={signOut}>Sign out</button> : null}
         </div>
       </div>
@@ -461,71 +439,6 @@ function HomePage({ portalData, timetable, attendanceRate, currentUser }) {
           </div>
         </div>
       </SectionCard>
-    </div>
-  );
-}
-
-function SchedulerPage({ isAdmin, timetable, timetableForm, setTimetableForm, handleTimetableGenerate, courseForm, setCourseForm, roomForm, setRoomForm, lecturerForm, setLecturerForm, submitRecord, portalData }) {
-  return (
-    <div className="grid gap-6 pt-6">
-      <section className="grid gap-4 lg:grid-cols-3">
-        <FeatureCard icon={GraduationCap} title="Lecturer details" description="Register lecturers and map subjects so AI can schedule the right faculty member." />
-        <FeatureCard icon={BookOpen} title="Department subjects" description="Create semester-wise courses for departments like MCA, CSE, or AI and keep codes organized." />
-        <FeatureCard icon={Building2} title="Classroom setup" description="Add labs, lecture halls, seminar rooms, and capacities before generating a timetable." />
-      </section>
-
-      {!isAdmin ? <RestrictedCard title="Scheduler management requires admin access." description="Use the lock in Contact / Help to open the admin-only timetable setup and generation workspace." /> : (
-        <div className="grid gap-6 xl:grid-cols-3">
-          <SectionCard title="Add course" description="Create department subjects for timetable generation.">
-            <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); submitRecord("courses", "/courses", { ...courseForm, code: courseForm.code.toUpperCase(), credits: Number(courseForm.credits), semester: Number(courseForm.semester), year: Number(courseForm.year), duration: Number(courseForm.duration), hoursPerWeek: Number(courseForm.hoursPerWeek), prerequisites: courseForm.prerequisites.split(",").map((item) => item.trim()).filter(Boolean) }, () => setCourseForm(emptyCourseForm)); }}>
-              <InputField label="Course name" value={courseForm.name} onChange={(value) => setCourseForm({ ...courseForm, name: value })} />
-              <div className="grid gap-3 md:grid-cols-2">
-                <InputField label="Code" value={courseForm.code} onChange={(value) => setCourseForm({ ...courseForm, code: value })} />
-                <InputField label="Department" value={courseForm.department} onChange={(value) => setCourseForm({ ...courseForm, department: value })} />
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <InputField label="Semester" type="number" value={courseForm.semester} onChange={(value) => setCourseForm({ ...courseForm, semester: Number(value) })} />
-                <InputField label="Credits" type="number" value={courseForm.credits} onChange={(value) => setCourseForm({ ...courseForm, credits: Number(value) })} />
-                <InputField label="Hours/week" type="number" value={courseForm.hoursPerWeek} onChange={(value) => setCourseForm({ ...courseForm, hoursPerWeek: Number(value) })} />
-              </div>
-              <button type="submit" className="primary-button justify-center">Save course</button>
-            </form>
-          </SectionCard>
-
-          <SectionCard title="Add lecturer" description="Lecturers added here become available for the scheduler and feedback pages.">
-            <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); submitRecord("faculty", "/faculty", { ...lecturerForm, employeeId: lecturerForm.employeeId.toUpperCase(), specialization: lecturerForm.specialization.split(",").map((item) => item.trim()).filter(Boolean), maxHoursPerWeek: Number(lecturerForm.maxHoursPerWeek || 18), assignedSubjects: [{ subjectName: lecturerForm.assignedSubjectName, courseCode: lecturerForm.assignedCourseCode.toUpperCase(), department: lecturerForm.department, semester: Number(lecturerForm.assignedSemester), section: lecturerForm.assignedSection.toUpperCase() }] }, () => setLecturerForm(emptyLecturerForm)); }}>
-              <InputField label="Lecturer name" value={lecturerForm.name} onChange={(value) => setLecturerForm({ ...lecturerForm, name: value })} />
-              <div className="grid gap-3 md:grid-cols-2">
-                <InputField label="Email" type="email" value={lecturerForm.email} onChange={(value) => setLecturerForm({ ...lecturerForm, email: value })} />
-                <InputField label="Employee ID" value={lecturerForm.employeeId} onChange={(value) => setLecturerForm({ ...lecturerForm, employeeId: value })} />
-              </div>
-              <InputField label="Subject name" value={lecturerForm.assignedSubjectName} onChange={(value) => setLecturerForm({ ...lecturerForm, assignedSubjectName: value })} />
-              <button type="submit" className="primary-button justify-center">Save lecturer</button>
-            </form>
-          </SectionCard>
-
-          <SectionCard title="Add classroom" description="Rooms saved here are available during AI timetable generation.">
-            <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); submitRecord("rooms", "/rooms", { ...roomForm, floor: Number(roomForm.floor), capacity: Number(roomForm.capacity), equipment: roomForm.equipment.split(",").map((item) => item.trim()).filter(Boolean) }, () => setRoomForm(emptyRoomForm)); }}>
-              <InputField label="Room name" value={roomForm.name} onChange={(value) => setRoomForm({ ...roomForm, name: value })} />
-              <div className="grid gap-3 md:grid-cols-2">
-                <InputField label="Building" value={roomForm.building} onChange={(value) => setRoomForm({ ...roomForm, building: value })} />
-                <InputField label="Capacity" type="number" value={roomForm.capacity} onChange={(value) => setRoomForm({ ...roomForm, capacity: Number(value) })} />
-              </div>
-              <button type="submit" className="primary-button justify-center">Save classroom</button>
-            </form>
-          </SectionCard>
-        </div>
-      )}
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <MiniPanel title="Courses ready" value={(portalData.courses || []).length} subtitle="Subjects available for scheduling" />
-        <MiniPanel title="Lecturers ready" value={(portalData.faculty || []).length} subtitle="Faculty that can be assigned" />
-        <MiniPanel title="Rooms ready" value={(portalData.rooms || []).length} subtitle="Classrooms and labs defined" />
-      </section>
-
-      <ProtectedPage allowed={isAdmin} title="AI scheduling workspace" description="Admin can generate a professional Monday-to-Saturday timetable with Sunday special support.">
-        <TimetableSection timetable={timetable} timetableForm={timetableForm} setTimetableForm={setTimetableForm} handleTimetableGenerate={handleTimetableGenerate} days={["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]} />
-      </ProtectedPage>
     </div>
   );
 }

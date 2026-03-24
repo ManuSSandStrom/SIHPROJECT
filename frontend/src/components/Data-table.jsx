@@ -58,7 +58,7 @@ export function DataTable({ data, columns, searchKey, loading = false, onEdit, o
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-cyan-400/70" />
           <Input
-            placeholder="Search courses..."
+            placeholder={`Search ${searchKey || "records"}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-12 h-12 bg-slate-800/40 backdrop-blur-sm border-slate-600/30 text-slate-100 placeholder:text-slate-400 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 rounded-xl transition-all duration-300 hover:bg-slate-800/50"
@@ -109,7 +109,7 @@ export function DataTable({ data, columns, searchKey, loading = false, onEdit, o
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-700/50 to-slate-800/50 flex items-center justify-center">
                       <Search className="w-8 h-8 text-slate-500" />
                     </div>
-                    <p className="text-lg">No courses found</p>
+                    <p className="text-lg">No records found</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -181,7 +181,7 @@ export function DataTable({ data, columns, searchKey, loading = false, onEdit, o
       <div className="flex items-center justify-between text-sm">
         <div className="text-slate-400 bg-slate-800/20 backdrop-blur-sm px-4 py-2 rounded-xl border border-slate-600/20">
           Showing <span className="text-cyan-400 font-semibold">{sortedData.length}</span> of{" "}
-          <span className="text-cyan-400 font-semibold">{data.length}</span> courses
+          <span className="text-cyan-400 font-semibold">{data.length}</span> records
           {searchTerm && (
             <span className="text-slate-300">
               {" "}

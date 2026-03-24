@@ -22,7 +22,7 @@ import {
   Bell,
 } from "lucide-react"
 
-const API = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "https://sihproject-19te.onrender.com";
+const API = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/$/, "");
 
 // Axios configuration
 const api = axios.create({
@@ -52,7 +52,7 @@ api.interceptors.response.use(
   },
 )
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 const TIME_SLOTS = [
   "09:00-10:00",
   "10:00-11:00",
@@ -138,7 +138,7 @@ function TimetableGrid({ timetable, courses, faculty, rooms }) {
 
       <CardContent className="p-6">
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-6 gap-3 min-w-[900px]">
+          <div className="grid grid-cols-8 gap-3 min-w-[1180px]">
             <div className="font-semibold text-center p-3 bg-slate-700/30 backdrop-blur-sm rounded-xl text-cyan-200 border border-slate-600/50">
               Time
             </div>
@@ -244,6 +244,7 @@ export default function TimetablePage() {
     semester: "5",
     academicYear: new Date().getFullYear(),
     constraintsText: "",
+    includeSundaySpecialClass: true,
   })
 
   useEffect(() => {
@@ -262,7 +263,7 @@ export default function TimetablePage() {
     } catch (err) {
       console.error("API Error:", err?.message, err?.response?.data);
       const errorMessage = err.response?.data?.error || err.message || "Failed to load timetables"
-      setError(`Failed to load timetables: ${errorMessage}. Please check your backend connection.`)
+      setError(`Unable to load timetables right now. ${errorMessage}`)
       setTimetables([])
     } finally {
       setLoadingList(false)
@@ -282,7 +283,7 @@ export default function TimetablePage() {
     } catch (err) {
       console.error("API Error:", err?.message, err?.response?.data);
       const errorMessage = err.response?.data?.error || err.message || "Unknown error"
-      setError(`Failed to load courses, faculty, or rooms data: ${errorMessage}`)
+      setError(`Unable to load courses, faculty, or rooms right now. ${errorMessage}`)
     }
   }
 
@@ -328,6 +329,7 @@ export default function TimetablePage() {
         semester: Number.parseInt(form.semester),
         academicYear: Number.parseInt(form.academicYear),
         constraints,
+        includeSundaySpecialClass: form.includeSundaySpecialClass,
       }
       const response = await api.post("/timetables/generate", payload)
       const newTimetable = response.data
@@ -385,12 +387,12 @@ export default function TimetablePage() {
   }
 
   const navigationItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
-    { id: "courses", label: "Courses", icon: BookOpen, path: "/courses" },
-    { id: "faculty", label: "Faculty", icon: UsersIcon, path: "/faculty" },
-    { id: "rooms", label: "Rooms", icon: HomeIcon, path: "/rooms" },
-    { id: "timetables", label: "Timetables", icon: CalendarIconLucide, path: "/timetables" },
-    { id: "notifications", label: "Notifications", icon: Bell, path: "/notifications" },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+    { id: "courses", label: "Courses", icon: BookOpen, path: "/admin/courses" },
+    { id: "faculty", label: "Faculty", icon: UsersIcon, path: "/admin/faculty" },
+    { id: "rooms", label: "Rooms", icon: HomeIcon, path: "/admin/rooms" },
+    { id: "timetables", label: "Timetables", icon: CalendarIconLucide, path: "/admin/timetables" },
+    { id: "notifications", label: "Notifications", icon: Bell, path: "/admin/notifications" },
   ]
 
   return (
@@ -525,6 +527,14 @@ export default function TimetablePage() {
                         className="bg-slate-800/50 border-slate-600/50 focus:border-cyan-500 focus:ring-cyan-500/20 text-slate-200 placeholder-slate-500 backdrop-blur-sm transition-all duration-300 hover:border-slate-500/70"
                       />
                     </div>
+                    <label className="flex items-center gap-3 rounded-xl border border-slate-700/50 bg-slate-800/30 px-4 py-3 text-sm text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={form.includeSundaySpecialClass}
+                        onChange={(e) => setForm({ ...form, includeSundaySpecialClass: e.target.checked })}
+                      />
+                      Include optional Sunday special class scheduling
+                    </label>
                     <div className="flex gap-3">
                       <Button
                         type="submit"
@@ -543,6 +553,7 @@ export default function TimetablePage() {
                             semester: "5",
                             academicYear: new Date().getFullYear(),
                             constraintsText: "",
+                            includeSundaySpecialClass: true,
                           })
                         }
                         className="bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 border border-slate-600/50 hover:border-slate-500/70 backdrop-blur-sm transition-all duration-300"

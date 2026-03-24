@@ -22,7 +22,7 @@ import {
 import { Link } from "react-router-dom"
 import { Chatbot } from "@/components/Chatbot"
 
-const API = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "https://sihproject-19te.onrender.com";
+const API = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/$/, "");
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true)
@@ -38,12 +38,12 @@ export default function Dashboard() {
   // -------------------------
 
   const navigationItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
-    { id: "courses", label: "Courses", icon: BookOpen, path: "/courses" },
-    { id: "faculty", label: "Faculty", icon: Users, path: "/faculty" },
-    { id: "rooms", label: "Rooms", icon: Home, path: "/rooms" },
-    { id: "timetables", label: "Timetables", icon: Calendar, path: "/timetables" },
-    { id: "notifications", label: "Notifications", icon: Bell, path: "/notifications" },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+    { id: "courses", label: "Courses", icon: BookOpen, path: "/admin/courses" },
+    { id: "faculty", label: "Faculty", icon: Users, path: "/admin/faculty" },
+    { id: "rooms", label: "Rooms", icon: Home, path: "/admin/rooms" },
+    { id: "timetables", label: "Timetables", icon: Calendar, path: "/admin/timetables" },
+    { id: "notifications", label: "Notifications", icon: Bell, path: "/admin/notifications" },
   ]
 
   useEffect(() => {
@@ -297,13 +297,13 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex gap-4">
-              <Link to="/timetables">
+              <Link to="/admin/timetables">
                 <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 px-6 py-3 border border-blue-400/30">
                   <Calendar className="h-5 w-5 mr-2" />
                   View Timetables
                 </Button>
               </Link>
-              <Link to="/timetables/generate">
+              <Link to="/admin/timetables">
                 <Button
                   variant="outline"
                   className="border-slate-600/50 bg-slate-800/30 backdrop-blur-sm hover:bg-slate-700/40 text-slate-200 hover:border-slate-500/50 shadow-md hover:shadow-lg transition-all duration-300 px-6 py-3"
@@ -361,7 +361,7 @@ export default function Dashboard() {
                       size="sm"
                       className="border-slate-600/50 bg-slate-700/30 hover:bg-slate-600/40 text-slate-200 hover:border-slate-500/50 transition-all duration-300"
                     >
-                      <Link to="/timetables">View All</Link>
+                      <Link to="/admin/timetables">View All</Link>
                     </Button>
                   </div>
                 </CardHeader>
@@ -375,7 +375,7 @@ export default function Dashboard() {
                       <p className="text-slate-400 mb-8 max-w-md mx-auto">
                         Create your first timetable to get started with scheduling your classes and resources.
                       </p>
-                      <Link to="/timetables/generate">
+                      <Link to="/admin/timetables">
                         <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300">
                           <Plus className="h-5 w-5 mr-2" />
                           Generate Timetable
@@ -437,7 +437,7 @@ export default function Dashboard() {
                   <CardDescription className="text-slate-400">Frequently used operations</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 space-y-3 flex flex-col">
-                  <Link to="/courses">
+                  <Link to="/admin/courses">
                     <Button
                       variant="outline"
                       className="w-full justify-start bg-slate-700/20 hover:bg-blue-500/10 border-slate-600/50 text-slate-200 hover:border-blue-500/30 hover:text-blue-400 transition-all duration-300 h-12 backdrop-blur-sm"
@@ -446,7 +446,7 @@ export default function Dashboard() {
                       Add Course
                     </Button>
                   </Link>
-                  <Link to="/faculty">
+                  <Link to="/admin/faculty">
                     <Button
                       variant="outline"
                       className="w-full justify-start bg-slate-700/20 hover:bg-emerald-500/10 border-slate-600/50 text-slate-200 hover:border-emerald-500/30 hover:text-emerald-400 transition-all duration-300 h-12 backdrop-blur-sm"
@@ -455,7 +455,7 @@ export default function Dashboard() {
                       Add Faculty
                     </Button>
                   </Link>
-                  <Link to="/rooms">
+                  <Link to="/admin/rooms">
                     <Button
                       variant="outline"
                       className="w-full justify-start bg-slate-700/20 hover:bg-violet-500/10 border-slate-600/50 text-slate-200 hover:border-violet-500/30 hover:text-violet-400 transition-all duration-300 h-12 backdrop-blur-sm"
@@ -464,7 +464,7 @@ export default function Dashboard() {
                       Add Room
                     </Button>
                   </Link>
-                  <Link to="/timetables/generate">
+                  <Link to="/admin/timetables">
                     <Button className="w-full justify-start bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 h-12">
                       <Sparkles className="h-5 w-5 mr-3" />
                       Generate Timetable
@@ -485,7 +485,7 @@ export default function Dashboard() {
                       size="sm"
                       className="border-slate-600/50 bg-slate-700/30 hover:bg-slate-600/40 text-slate-200 hover:border-slate-500/50 transition-all duration-300"
                     >
-                      <Link to="/notifications">View All</Link>
+                      <Link to="/admin/notifications">View All</Link>
                     </Button>
                   </div>
                 </CardHeader>

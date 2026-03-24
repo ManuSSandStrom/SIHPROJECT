@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
-const API = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "https://sihproject-19te.onrender.com";
+const API = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5000").replace(/\/$/, "");
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([])
@@ -108,12 +108,12 @@ export default function NotificationsPage() {
   }
 
   const navigationItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
-    { id: "courses", label: "Courses", icon: BookOpen, path: "/courses" },
-    { id: "faculty", label: "Faculty", icon: Users, path: "/faculty" },
-    { id: "rooms", label: "Rooms", icon: Home, path: "/rooms" },
-    { id: "timetables", label: "Timetables", icon: Calendar, path: "/timetables" },
-    { id: "notifications", label: "Notifications", icon: Bell, path: "/notifications" },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+    { id: "courses", label: "Courses", icon: BookOpen, path: "/admin/courses" },
+    { id: "faculty", label: "Faculty", icon: Users, path: "/admin/faculty" },
+    { id: "rooms", label: "Rooms", icon: Home, path: "/admin/rooms" },
+    { id: "timetables", label: "Timetables", icon: Calendar, path: "/admin/timetables" },
+    { id: "notifications", label: "Notifications", icon: Bell, path: "/admin/notifications" },
   ]
 
   const getNotificationIcon = (type) => {
