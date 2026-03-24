@@ -1,0 +1,162 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  color-scheme: light;
+  --panel-shadow: 0 30px 80px rgba(14, 116, 255, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Inter", sans-serif;
+  color: #0f172a;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@layer components {
+  .portal-sidebar {
+    @apply fixed inset-y-0 left-0 z-40 flex w-[290px] -translate-x-full flex-col gap-4 border-r border-white/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(239,246,255,0.92))] p-5 backdrop-blur-xl transition-transform duration-300 lg:static lg:translate-x-0;
+  }
+
+  .portal-sidebar.is-open {
+    @apply translate-x-0;
+  }
+
+  .glass-panel {
+    @apply rounded-[34px] border border-white/80 bg-white/55 p-4 shadow-[var(--panel-shadow)] backdrop-blur-xl md:p-6;
+  }
+
+  .hero-card {
+    @apply relative overflow-hidden rounded-[34px] border border-sky-100 bg-[linear-gradient(135deg,#ffffff_0%,#e0efff_45%,#bfdbfe_100%)] p-7 shadow-[0_30px_80px_rgba(14,116,255,0.16)];
+  }
+
+  .hero-card::after {
+    content: "";
+    @apply absolute -right-16 top-8 h-40 w-40 rounded-full bg-sky-300/30 blur-3xl;
+  }
+
+  .auth-card {
+    @apply rounded-[34px] border border-white/80 bg-white/92 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)];
+  }
+
+  .primary-button {
+    @apply inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_35px_rgba(29,78,216,0.28)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_44px_rgba(29,78,216,0.35)];
+  }
+
+  .secondary-button {
+    @apply inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-white px-5 py-3 text-sm font-semibold text-sky-800 transition duration-200 hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50;
+  }
+
+  .field-input {
+    @apply w-full rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100;
+  }
+
+  .nav-link {
+    @apply flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-white hover:text-sky-800;
+  }
+
+  .nav-link.active {
+    @apply bg-white text-sky-800 shadow-sm;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700;
+  }
+
+  .pill-success {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-700;
+  }
+
+  .pill-warning {
+    @apply border-amber-200 bg-amber-50 text-amber-700;
+  }
+
+  .status-banner {
+    @apply mt-6 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800;
+  }
+
+  .segmented-control {
+    @apply inline-flex rounded-2xl border border-sky-100 bg-sky-50 p-1;
+  }
+
+  .segmented-control button {
+    @apply rounded-2xl px-3 py-2 text-sm font-medium text-slate-500 transition;
+  }
+
+  .segmented-control button.active {
+    @apply bg-white text-sky-800 shadow-sm;
+  }
+
+  .toggle-card {
+    @apply flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm font-medium text-slate-700;
+  }
+
+  .list-row {
+    @apply flex flex-col gap-3 rounded-3xl border border-sky-100 bg-slate-50/70 p-4 md:flex-row md:items-center md:justify-between;
+  }
+
+  .slot-card {
+    @apply rounded-2xl border border-white bg-white p-3 shadow-sm;
+  }
+}
+
+.ambient-shape {
+  position: fixed;
+  z-index: 0;
+  border-radius: 999px;
+  filter: blur(70px);
+  opacity: 0.45;
+}
+
+.ambient-shape-left {
+  top: 80px;
+  left: -80px;
+  height: 220px;
+  width: 220px;
+  background: rgba(56, 189, 248, 0.28);
+}
+
+.ambient-shape-right {
+  right: -90px;
+  bottom: 120px;
+  height: 280px;
+  width: 280px;
+  background: rgba(147, 197, 253, 0.32);
+}
+
+.animate-rise {
+  animation: rise-in 0.7s ease-out both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1023px) {
+  .portal-sidebar {
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+  }
+}
