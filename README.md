@@ -78,7 +78,7 @@ Use these values in Netlify:
 Environment variables for Netlify:
 
 ```env
-VITE_API_BASE_URL=https://your-render-backend.onrender.com
+VITE_API_BASE_URL=https://sihproject-19te.onrender.com
 VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 ```
 

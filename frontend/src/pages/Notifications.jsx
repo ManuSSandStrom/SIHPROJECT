@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
-const API = import.meta.env.VITE_API_URL || "https://smart-class-room-backend-5ne7.onrender.com";
+const API = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "https://sihproject-19te.onrender.com";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([])
