@@ -29,6 +29,11 @@ export const demoPortalData = {
     { _id: "faculty-1", name: "Dr. Meera Iyer", email: "meera@blueboard.edu", employeeId: "FAC101", department: "Computer Science", designation: "Professor", specialization: ["AI", "Machine Learning"], assignedSubjects: [{ subjectName: "Machine Learning", courseCode: "CS501", department: "Computer Science", semester: 5, section: "A" }], officeLocation: "Block A - 301" },
     { _id: "faculty-2", name: "Prof. Arjun Das", email: "arjun@blueboard.edu", employeeId: "FAC102", department: "Computer Science", designation: "Lecturer", specialization: ["Data Structures", "Algorithms"], assignedSubjects: [{ subjectName: "Cloud Computing", courseCode: "CS503", department: "Computer Science", semester: 5, section: "A" }], officeLocation: "Block A - 205" },
   ],
+  rooms: [
+    { _id: "room-1", name: "MCA Lab 1", building: "MCA Block", floor: 2, capacity: 48, type: "lab" },
+    { _id: "room-2", name: "Seminar Hall", building: "Main Block", floor: 1, capacity: 120, type: "seminar_room" },
+    { _id: "room-3", name: "Blue Lecture Hall", building: "Academic Block", floor: 3, capacity: 80, type: "lecture_hall" },
+  ],
   courses: [
     { _id: "course-1", name: "Machine Learning", code: "CS501", department: "Computer Science", semester: 5, type: "lecture", hoursPerWeek: 3 },
     { _id: "course-2", name: "Data Structures Lab", code: "CS502", department: "Computer Science", semester: 5, type: "lab", hoursPerWeek: 2 },
@@ -72,6 +77,28 @@ export const demoPortalData = {
     { _id: "note-1", title: "Saturday class plan published", message: "Semester 5 timetable has been refreshed with Saturday academic blocks.", type: "success" },
     { _id: "note-2", title: "Sunday special class available", message: "Admin enabled a special workshop option for placement and revision sessions.", type: "info" },
     { _id: "note-3", title: "Support desk reminder", message: "Please resolve open attendance issues before the next reporting cycle.", type: "warning" },
+  ],
+  contactMessages: [
+    {
+      _id: "contact-1",
+      name: "Ananya Reddy",
+      email: "ananya@blueboard.edu",
+      phone: "9876543210",
+      collegeId: "CS23041",
+      message: "Need help updating attendance for last week.",
+      status: "new",
+      createdAt: "2026-03-24T10:30:00.000Z",
+    },
+    {
+      _id: "contact-2",
+      name: "Rahul Varma",
+      email: "rahul@blueboard.edu",
+      phone: "9988776655",
+      collegeId: "MCA24011",
+      message: "Please share timetable details for the special workshop.",
+      status: "in_review",
+      createdAt: "2026-03-24T12:00:00.000Z",
+    },
   ],
 };
 

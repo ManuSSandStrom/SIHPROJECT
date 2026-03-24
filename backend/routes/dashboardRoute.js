@@ -1,5 +1,6 @@
 import { Router } from "express";
 import Attendance from "../models/Attendance.js";
+import ContactMessage from "../models/ContactMessage.js";
 import Course from "../models/course.js";
 import Faculty from "../models/Faculty.js";
 import Feedback from "../models/Feedback.js";
@@ -25,6 +26,7 @@ dashboardRouter.get("/summary", async (_req, res) => {
       feedback,
       notifications,
       holidays,
+      contactMessages,
     ] = await Promise.all([
       User.find().sort({ createdAt: -1 }),
       Faculty.find().sort({ createdAt: -1 }),
@@ -36,6 +38,7 @@ dashboardRouter.get("/summary", async (_req, res) => {
       Feedback.find().sort({ createdAt: -1 }),
       Notification.find().sort({ createdAt: -1 }),
       Holiday.find().sort({ date: -1, createdAt: -1 }),
+      ContactMessage.find().sort({ createdAt: -1 }),
     ]);
 
     const presentCount = attendance.filter((item) => item.status === "present").length;
@@ -56,6 +59,7 @@ dashboardRouter.get("/summary", async (_req, res) => {
         openIssues,
         averageFeedback,
         holidayCount: holidays.length,
+        contactMessages: contactMessages.length,
       },
       latest: {
         users: users.slice(0, 5),
@@ -64,6 +68,7 @@ dashboardRouter.get("/summary", async (_req, res) => {
         feedback: feedback.slice(0, 5),
         notifications: notifications.slice(0, 5),
         holidays: holidays.slice(0, 5),
+        contactMessages: contactMessages.slice(0, 5),
       },
       supportQueues: {
         issuesByStatus: {
@@ -77,11 +82,17 @@ dashboardRouter.get("/summary", async (_req, res) => {
           actioned: feedback.filter((item) => item.status === "actioned").length,
           sharedWithLecturer: feedback.filter((item) => item.status === "shared_with_lecturer").length,
         },
+        contactByStatus: {
+          new: contactMessages.filter((item) => item.status === "new").length,
+          inReview: contactMessages.filter((item) => item.status === "in_review").length,
+          resolved: contactMessages.filter((item) => item.status === "resolved").length,
+        },
       },
       campus: {
         rooms: rooms.length,
         notifications: notifications.length,
         holidays: holidays.length,
+        contactMessages: contactMessages.length,
       },
     });
   } catch (error) {

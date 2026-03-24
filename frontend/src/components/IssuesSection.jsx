@@ -21,7 +21,7 @@ export function IssuesSection({ issueForm, setIssueForm, issues, currentUser, su
             <div key={issue._id} className="list-row items-start">
               <div>
                 <p className="font-semibold text-slate-950">{issue.title}</p>
-                <p className="mt-1 text-sm text-slate-500">{issue.studentName} • {issue.category} • {issue.priority}</p>
+                <p className="mt-1 text-sm text-slate-500">{issue.studentName} - {issue.category} - {issue.priority}</p>
                 <p className="mt-3 text-sm leading-6 text-slate-600">{issue.description}</p>
               </div>
               <div className="flex flex-col items-end gap-2">

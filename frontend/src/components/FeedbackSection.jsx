@@ -84,8 +84,8 @@ export function FeedbackSection({
               <div>
                 <p className="font-semibold text-slate-950">{item.title}</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  {item.studentName} • {item.category}
-                  {item.lecturerName ? ` • ${item.lecturerName}` : ""}
+                  {item.studentName} - {item.category}
+                  {item.lecturerName ? ` - ${item.lecturerName}` : ""}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{item.message}</p>
               </div>

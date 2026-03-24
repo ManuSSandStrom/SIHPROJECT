@@ -15,6 +15,7 @@ import { issuesRouter } from "./routes/issuesRoute.js";
 import { feedbackRouter } from "./routes/feedbackRoute.js";
 import { dashboardRouter } from "./routes/dashboardRoute.js";
 import { holidaysRouter } from "./routes/holidaysRoute.js";
+import { contactMessagesRouter } from "./routes/contactMessagesRoute.js";
 import { seedDefaultAdmin } from "./utils/seedDefaultAdmin.js";
 
 dotenv.config({ quiet: true });
@@ -106,6 +107,7 @@ app.use("/api/issues", issuesRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/holidays", holidaysRouter);
+app.use("/api/contact-messages", contactMessagesRouter);
 
 // Global Error Handler to catch 500 errors
 app.use((err, req, res, next) => {

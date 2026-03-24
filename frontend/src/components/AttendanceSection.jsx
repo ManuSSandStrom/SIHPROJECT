@@ -126,7 +126,7 @@ export function AttendanceSection({
               <div>
                 <p className="font-semibold text-slate-950">{student.name}</p>
                 <p className="text-sm text-slate-500">
-                  {student.collegeId} • {student.department} • Section {student.section}
+                  {student.collegeId} - {student.department} - Section {student.section}
                 </p>
               </div>
               <div className="min-w-40">
@@ -151,7 +151,7 @@ export function AttendanceSection({
             <div key={record._id} className="rounded-3xl border border-sky-100 bg-slate-50/70 p-4">
               <p className="font-semibold text-slate-950">{record.studentName}</p>
               <p className="mt-1 text-sm text-slate-500">
-                {record.courseCode} • {record.department || "Department"} • Section {record.section || "-"}
+                {record.courseCode} - {record.department || "Department"} - Section {record.section || "-"}
               </p>
               <div className="mt-3 flex items-center justify-between">
                 <span className={`pill ${record.status === "present" ? "pill-success" : "pill-warning"}`}>{record.status}</span>
