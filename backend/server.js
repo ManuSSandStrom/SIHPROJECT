@@ -24,10 +24,13 @@ const exactOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   process.env.FRONTEND_URL,
+  process.env.NETLIFY_URL,
 ].filter(Boolean);
 
 const allowedOriginPatterns = [
   /^http:\/\/localhost(?::\d+)?$/,
+  /^https:\/\/.*\.netlify\.app$/,
+  /^https:\/\/.*\.onrender\.com$/,
 ];
 
 function isAllowedOrigin(origin) {

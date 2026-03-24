@@ -1,15 +1,14 @@
 # SIHPROJECT
 
-SIHPROJECT is a local-first smart classroom platform built with React, Node.js, Express, and MongoDB.
+SIHPROJECT is a MERN smart classroom platform with:
 
-It includes:
-
-- timetable scheduling
-- attendance management by department and section
-- holiday attendance support
-- student complaints and issue resolution
-- lecturer feedback from student login
-- admin portal for students, lecturers, attendance, holidays, and monitoring
+- blue-and-white student/admin portal
+- timetable scheduler
+- attendance by department and section
+- holiday attendance handling
+- complaint and issue management
+- lecturer feedback system
+- admin-led lecturer and student management
 
 ## Local Run
 
@@ -34,17 +33,74 @@ npm run dev
 - Email: `admin@blueboard.edu`
 - Password: `Admin@123`
 
-## Local Environment
+## Deployment Ready
 
-Frontend uses:
+This repo is prepared for:
+
+- Render for backend
+- Netlify for frontend
+
+Files added for deployment:
+
+- [render.yaml](/c:/Users/Nandeesh%20kumar/OneDrive/Documents/SMART-CLASS-ROOM-MAJOUR-main/render.yaml)
+- [netlify.toml](/c:/Users/Nandeesh%20kumar/OneDrive/Documents/SMART-CLASS-ROOM-MAJOUR-main/netlify.toml)
+- [backend/.env.example](/c:/Users/Nandeesh%20kumar/OneDrive/Documents/SMART-CLASS-ROOM-MAJOUR-main/backend/.env.example)
+- [frontend/.env.example](/c:/Users/Nandeesh%20kumar/OneDrive/Documents/SMART-CLASS-ROOM-MAJOUR-main/frontend/.env.example)
+
+## Render Setup
+
+Use these values in Render:
+
+- Root Directory: `backend`
+- Build Command: `npm install`
+- Start Command: `npm start`
+- Health Check Path: `/api/health`
+
+Environment variables for Render:
 
 ```env
-VITE_API_BASE_URL=http://localhost:5000
+MONGO_URI=your_mongodb_connection_string
+OPENAI_API_KEY=your_openrouter_or_openai_key
+PORT=10000
+FRONTEND_URL=https://your-netlify-site.netlify.app
+DEFAULT_ADMIN_EMAIL=admin@blueboard.edu
+DEFAULT_ADMIN_PASSWORD=Admin@123
 ```
 
-Backend uses:
+## Netlify Setup
+
+Use these values in Netlify:
+
+- Base directory: `frontend`
+- Build command: `npm run build`
+- Publish directory: `dist`
+
+Environment variables for Netlify:
 
 ```env
-PORT=5000
-FRONTEND_URL=http://localhost:5173
+VITE_API_BASE_URL=https://your-render-backend.onrender.com
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 ```
+
+## Manual Commands
+
+If you want to use the platform UIs instead of the config files:
+
+Render:
+
+```bash
+npm install
+npm start
+```
+
+Netlify:
+
+```bash
+npm run build
+```
+
+## Notes
+
+- Backend CORS is prepared for localhost, Netlify, and Render origins.
+- Keep real secrets in Render and Netlify environment settings, not in git.
+- If you use a production Clerk project, replace the development key in Netlify.
