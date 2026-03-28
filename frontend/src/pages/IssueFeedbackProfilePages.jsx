@@ -207,6 +207,14 @@ export function FeedbackWorkspacePage({ role }) {
   const departments = setup.data?.departments || [];
   const programs = setup.data?.programs || [];
   const sections = setup.data?.sections || [];
+  const facultyOptions = Array.from(
+    new Map(
+      (targets.data || []).map((target) => [
+        target.facultyId,
+        { value: target.facultyId, label: target.facultyName },
+      ]),
+    ).values(),
+  );
   const activeTargets = (targets.data || []).filter(
     (target) => !selectedFacultyId || target.facultyId === selectedFacultyId,
   );
@@ -220,6 +228,17 @@ export function FeedbackWorkspacePage({ role }) {
       feedbackForm.setValue("cycleId", cycles.data[0]._id);
     }
   }, [cycles.data, feedbackForm, targets.data]);
+
+  useEffect(() => {
+    if (!facultyOptions.length) {
+      return;
+    }
+
+    const currentFacultyId = feedbackForm.getValues("facultyId");
+    if (!facultyOptions.some((facultyOption) => facultyOption.value === currentFacultyId)) {
+      feedbackForm.setValue("facultyId", facultyOptions[0].value);
+    }
+  }, [facultyOptions, feedbackForm]);
 
   useEffect(() => {
     if (!activeTargets.length) {
@@ -415,7 +434,7 @@ export function FeedbackWorkspacePage({ role }) {
             <CardBody>
               <form className="grid gap-4 md:grid-cols-2" onSubmit={feedbackForm.handleSubmit(submitStudentFeedback)}>
                 <FormField label="Feedback Cycle" as="select" options={[{ value: "", label: "Select active cycle", disabled: true }, ...(cycles.data || []).map((cycle) => ({ value: cycle._id, label: cycle.title }))]} {...feedbackForm.register("cycleId")} />
-                <FormField label="Faculty" as="select" options={[{ value: "", label: "Select faculty", disabled: true }, ...(targets.data || []).map((target) => ({ value: target.facultyId, label: `${target.facultyName} - ${target.subjectCode}` }))]} {...feedbackForm.register("facultyId")} />
+                <FormField label="Faculty" as="select" options={[{ value: "", label: "Select faculty", disabled: true }, ...facultyOptions]} {...feedbackForm.register("facultyId")} />
                 <FormField label="Subject" as="select" options={[{ value: "", label: "Select subject", disabled: true }, ...activeTargets.map((target) => ({ value: target.subjectId, label: target.subjectName }))]} {...feedbackForm.register("subjectId")} />
                 <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
                   Results are not visible to faculty. Only admin can review feedback reports and analytics.

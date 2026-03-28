@@ -156,6 +156,17 @@ export async function submitFeedback(payload, user, req) {
     throw new ApiError(400, "The selected faculty and subject are not assigned to your section.");
   }
 
+  const existingSubmission = await FeedbackSubmission.findOne({
+    cycle: cycle._id,
+    student: studentProfile._id,
+    faculty: faculty._id,
+    section: studentProfile.section._id,
+  });
+
+  if (existingSubmission) {
+    throw new ApiError(409, "You have already submitted feedback for this faculty in the selected cycle.");
+  }
+
   const numericScores = payload.responses
     .map((response) => response.score)
     .filter((value) => typeof value === "number");

@@ -15,8 +15,9 @@ export function TrendChart({ title, description, data, dataKey = "count", labelK
   return (
     <Card>
       <CardHeader title={title} description={description} />
-      <CardBody className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
+      <CardBody className="min-w-0">
+        <div className="h-80 min-h-[20rem] min-w-0 w-full">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
           {variant === "bar" ? (
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -35,6 +36,7 @@ export function TrendChart({ title, description, data, dataKey = "count", labelK
             </LineChart>
           )}
         </ResponsiveContainer>
+        </div>
       </CardBody>
     </Card>
   );
