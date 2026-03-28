@@ -8,6 +8,7 @@ const router = Router();
 
 router.use(protectRoute, allowRoles("admin"));
 router.get("/dashboard", adminController.dashboard);
+router.get("/setup-options", adminController.setupOptions);
 router.get("/faculty-approvals", adminController.facultyApprovals);
 router.post("/faculty-approvals/:userId/approve", adminController.approveFaculty);
 router.post("/faculty-approvals/:userId/reject", adminController.rejectFaculty);

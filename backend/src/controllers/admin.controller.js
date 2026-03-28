@@ -4,6 +4,7 @@ import {
   createResource,
   deleteResource,
   getAdminDashboard,
+  getAdminSetupOptions,
   listAuditLogs,
   listContactMessages,
   listPendingFaculty,
@@ -17,6 +18,9 @@ import { asyncHandler, sendSuccess } from "../utils/api.js";
 export const adminController = {
   dashboard: asyncHandler(async (_req, res) => {
     return sendSuccess(res, await getAdminDashboard());
+  }),
+  setupOptions: asyncHandler(async (_req, res) => {
+    return sendSuccess(res, await getAdminSetupOptions());
   }),
   listResource: asyncHandler(async (req, res) => {
     return sendSuccess(res, await listResource(req.params.resource, req.query));

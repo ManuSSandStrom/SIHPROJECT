@@ -303,7 +303,7 @@ export async function getSectionRoster(sectionId) {
   }
 
   return StudentProfile.find({ section: sectionId })
-    .populate("user")
+    .populate("user section")
     .sort({ collegeId: 1 });
 }
 

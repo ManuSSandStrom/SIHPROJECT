@@ -96,11 +96,44 @@ export function AttendanceWorkspacePage({ role }) {
     <div className="space-y-6">
       <PageHeader eyebrow="Attendance" title={isAdmin ? "Attendance oversight and analytics" : "Timetable-driven attendance marking"} description={isAdmin ? "Monitor absentee trends, submission coverage, and section-level attendance health." : "Choose a scheduled period, load the roster, and submit attendance for the active class."} />
       {isAdmin ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          <MetricCard title="Total Sessions" value={analytics.data?.totalSessions || 0} hint="Recorded attendance sessions" icon={CalendarClock} />
-          <MetricCard title="Attendance Records" value={analytics.data?.totalRecords || 0} hint="Individual student attendance entries" icon={ClipboardCheck} />
-          <MetricCard title="Daily Absentees" value={analytics.data?.dailyAbsentees?.length || 0} hint="Students absent across tracked sessions" icon={ShieldAlert} />
-        </div>
+        <>
+          <div className="grid gap-4 md:grid-cols-3">
+            <MetricCard title="Total Sessions" value={analytics.data?.totalSessions || 0} hint="Recorded attendance sessions" icon={CalendarClock} />
+            <MetricCard title="Attendance Records" value={analytics.data?.totalRecords || 0} hint="Individual student attendance entries" icon={ClipboardCheck} />
+            <MetricCard title="Daily Absentees" value={analytics.data?.dailyAbsentees?.length || 0} hint="Students absent across tracked sessions" icon={ShieldAlert} />
+          </div>
+          <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
+            <Card>
+              <CardHeader title="Roster Master Data" description="Add student records from Academic Setup, then faculty attendance will automatically use the same section roster." />
+              <CardBody className="space-y-4">
+                <FormField
+                  label="Section"
+                  as="select"
+                  options={(sections.data || []).map((section) => ({
+                    value: section._id,
+                    label: `${section.program?.name || "Program"} Semester ${section.semesterNumber} - ${section.name}`,
+                  }))}
+                  value={selectedSection}
+                  onChange={(event) => setSelectedSection(event.target.value)}
+                />
+                <div className="rounded-[22px] border border-sky-100 bg-sky-50/70 p-4 text-sm leading-7 text-slate-600">
+                  Faculty see this same section roster during attendance marking. Students then see those submitted attendance records inside their own login dashboard.
+                </div>
+              </CardBody>
+            </Card>
+            <DataTable
+              title="Section Student Roster"
+              description="This roster is the source list used when faculty mark attendance for published timetable periods."
+              data={roster.data || []}
+              columns={[
+                { header: "Student", accessorFn: (row) => row.user?.fullName, cell: (info) => info.getValue() },
+                { header: "Email", accessorFn: (row) => row.user?.email, cell: (info) => info.getValue() },
+                { header: "College ID", accessorFn: (row) => row.collegeId, cell: (info) => info.getValue() },
+                { header: "Section", accessorFn: (row) => row.section?.name, cell: (info) => info.getValue() },
+              ]}
+            />
+          </div>
+        </>
       ) : null}
       {isFaculty ? (
         <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">

@@ -20,8 +20,8 @@ export const publicNavigation = [
 
 export const adminNavigation = [
   { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Operations", to: "/admin/operations", icon: Building2 },
-  { label: "Timetable", to: "/admin/timetable", icon: CalendarClock },
+  { label: "Academic Setup", to: "/admin/operations", icon: Building2 },
+  { label: "Timetable Flow", to: "/admin/timetable", icon: CalendarClock },
   { label: "Attendance", to: "/admin/attendance", icon: ClipboardCheck },
   { label: "Issues", to: "/admin/issues", icon: MessageCircleWarning },
   { label: "Feedback", to: "/admin/feedback", icon: MessageSquareQuote },

@@ -8,30 +8,31 @@ import {
 import {
   AttendanceRecord,
   AttendanceSession,
+  Classroom,
   ContactMessage,
   Department,
   FacultyProfile,
+  FacultyAssignment,
   FeedbackCycle,
   FeedbackSubmission,
   Issue,
+  Laboratory,
   Notification,
+  Program,
   Section,
+  Semester,
   StudentProfile,
+  Subject,
   Timetable,
   User,
   AdminProfile,
-  Program,
-  Semester,
-  Subject,
-  FacultyAssignment,
-  Classroom,
-  Laboratory,
   Holiday,
   FeedbackTemplate,
   AuditLog,
 } from "../models/index.js";
 import { ApiError, buildPagination, getSort } from "../utils/api.js";
 import { createAuditLog } from "../utils/audit.js";
+import { hashPassword } from "../utils/security.js";
 
 const resourceMap = {
   [MASTER_DATA_RESOURCES.departments]: Department,
@@ -72,6 +73,342 @@ function resolveResource(resource) {
   }
 
   return { model, modelName };
+}
+
+async function ensureDepartmentProgramContext(departmentId, programId) {
+  const [department, program] = await Promise.all([
+    Department.findById(departmentId),
+    Program.findById(programId),
+  ]);
+
+  if (!department || !program) {
+    throw new ApiError(400, "Invalid department or program.");
+  }
+
+  if (String(program.department) !== String(department._id)) {
+    throw new ApiError(400, "Selected program does not belong to the chosen department.");
+  }
+
+  return { department, program };
+}
+
+async function resolveSection({
+  sectionId,
+  departmentId,
+  programId,
+  semesterNumber,
+  batchYear,
+  sectionName,
+}) {
+  if (sectionId) {
+    const section = await Section.findById(sectionId);
+    if (!section) {
+      throw new ApiError(404, "Section not found.");
+    }
+    return section;
+  }
+
+  if (!sectionName) {
+    throw new ApiError(400, "Section name is required.");
+  }
+
+  const normalizedCode = sectionName.trim().toUpperCase();
+  const existingSection = await Section.findOne({
+    department: departmentId,
+    program: programId,
+    semesterNumber,
+    code: normalizedCode,
+  });
+
+  if (existingSection) {
+    return existingSection;
+  }
+
+  return Section.create({
+    name: `Section ${normalizedCode}`,
+    code: normalizedCode,
+    department: departmentId,
+    program: programId,
+    semesterNumber,
+    batchYear,
+    strength: 60,
+  });
+}
+
+async function createStudentResource(payload) {
+  const requiredFields = [
+    "fullName",
+    "email",
+    "password",
+    "collegeId",
+    "department",
+    "program",
+    "semesterNumber",
+    "batchYear",
+  ];
+  const missingField = requiredFields.find((field) => !payload[field]);
+  if (missingField) {
+    throw new ApiError(400, `${missingField} is required to create a student.`);
+  }
+
+  const normalizedEmail = payload.email.toLowerCase();
+  const normalizedCollegeId = payload.collegeId.toUpperCase();
+  const [existingEmail, existingCollegeId] = await Promise.all([
+    User.findOne({ email: normalizedEmail }),
+    StudentProfile.findOne({ collegeId: normalizedCollegeId }),
+  ]);
+
+  if (existingEmail) {
+    throw new ApiError(409, "Email is already registered.");
+  }
+
+  if (existingCollegeId) {
+    throw new ApiError(409, "College ID is already registered.");
+  }
+
+  await ensureDepartmentProgramContext(payload.department, payload.program);
+  const section = await resolveSection({
+    sectionId: payload.section,
+    departmentId: payload.department,
+    programId: payload.program,
+    semesterNumber: payload.semesterNumber,
+    batchYear: payload.batchYear,
+    sectionName: payload.sectionName,
+  });
+
+  const user = await User.create({
+    fullName: payload.fullName,
+    email: normalizedEmail,
+    passwordHash: await hashPassword(payload.password),
+    role: ROLES.STUDENT,
+    status: USER_STATUSES.ACTIVE,
+    phone: payload.phone,
+  });
+
+  return StudentProfile.create({
+    user: user._id,
+    collegeId: normalizedCollegeId,
+    rollNumber: payload.rollNumber?.toUpperCase(),
+    department: payload.department,
+    program: payload.program,
+    semesterNumber: payload.semesterNumber,
+    section: section._id,
+    batchYear: payload.batchYear,
+    emergencyContact: payload.emergencyContact,
+  });
+}
+
+async function createFacultyResource(payload) {
+  const requiredFields = [
+    "fullName",
+    "email",
+    "password",
+    "staffId",
+    "department",
+  ];
+  const missingField = requiredFields.find((field) => !payload[field]);
+  if (missingField) {
+    throw new ApiError(400, `${missingField} is required to create a faculty record.`);
+  }
+
+  const normalizedEmail = payload.email.toLowerCase();
+  const normalizedStaffId = payload.staffId.toUpperCase();
+  const [existingEmail, existingStaffId, department] = await Promise.all([
+    User.findOne({ email: normalizedEmail }),
+    FacultyProfile.findOne({ staffId: normalizedStaffId }),
+    Department.findById(payload.department),
+  ]);
+
+  if (existingEmail) {
+    throw new ApiError(409, "Email is already registered.");
+  }
+
+  if (existingStaffId) {
+    throw new ApiError(409, "Faculty staff ID is already registered.");
+  }
+
+  if (!department) {
+    throw new ApiError(400, "Invalid department selected.");
+  }
+
+  const user = await User.create({
+    fullName: payload.fullName,
+    email: normalizedEmail,
+    passwordHash: await hashPassword(payload.password),
+    role: ROLES.FACULTY,
+    status: USER_STATUSES.ACTIVE,
+    phone: payload.phone,
+  });
+
+  return FacultyProfile.create({
+    user: user._id,
+    staffId: normalizedStaffId,
+    qualification: payload.qualification,
+    department: payload.department,
+    phone: payload.phone,
+    specialization: payload.specialization || [],
+    assignedSections: payload.assignedSections || [],
+    maxWeeklyLoad: payload.maxWeeklyLoad || 20,
+    approvedAt: new Date(),
+    approvedBy: payload.approvedBy,
+  });
+}
+
+async function createAssignmentResource(payload) {
+  const faculty = await FacultyProfile.findById(payload.faculty);
+  const subject = await Subject.findById(payload.subject);
+  const section = await Section.findById(payload.section);
+
+  if (!faculty || !subject || !section) {
+    throw new ApiError(400, "Faculty, subject, and section are required for an assignment.");
+  }
+
+  if (String(subject.department) !== String(section.department)) {
+    throw new ApiError(400, "Selected subject does not belong to the section's department.");
+  }
+
+  if (String(subject.program) !== String(section.program)) {
+    throw new ApiError(400, "Selected subject does not belong to the section's program.");
+  }
+
+  if (subject.semesterNumber !== section.semesterNumber) {
+    throw new ApiError(400, "Selected subject does not belong to the section's semester.");
+  }
+
+  return FacultyAssignment.create({
+    faculty: faculty._id,
+    subject: subject._id,
+    department: section.department,
+    program: section.program,
+    section: section._id,
+    semesterNumber: section.semesterNumber,
+    weeklyHoursOverride: payload.weeklyHoursOverride,
+    preferredRoomType: payload.preferredRoomType || "classroom",
+  });
+}
+
+async function createProgramResource(payload) {
+  if (!payload.department) {
+    throw new ApiError(400, "Department is required for a program.");
+  }
+  const department = await Department.findById(payload.department);
+  if (!department) {
+    throw new ApiError(400, "Invalid department selected.");
+  }
+  return Program.create(payload);
+}
+
+async function createSectionResource(payload) {
+  if (!payload.department || !payload.program) {
+    throw new ApiError(400, "Department and program are required for a section.");
+  }
+  await ensureDepartmentProgramContext(payload.department, payload.program);
+  return Section.create(payload);
+}
+
+async function createSubjectResource(payload) {
+  if (!payload.department || !payload.program) {
+    throw new ApiError(400, "Department and program are required for a subject.");
+  }
+  await ensureDepartmentProgramContext(payload.department, payload.program);
+  return Subject.create(payload);
+}
+
+async function createMasterResource(resource, payload, actor) {
+  switch (resource) {
+    case "students":
+      return createStudentResource(payload);
+    case "faculty":
+      return createFacultyResource({ ...payload, approvedBy: actor._id });
+    case "assignments":
+      return createAssignmentResource(payload);
+    case "programs":
+      return createProgramResource(payload);
+    case "sections":
+      return createSectionResource(payload);
+    case "subjects":
+      return createSubjectResource(payload);
+    default:
+      return null;
+  }
+}
+
+export async function getAdminSetupOptions() {
+  const [
+    departments,
+    programs,
+    semesters,
+    sections,
+    subjects,
+    faculty,
+    students,
+    classrooms,
+    laboratories,
+    assignments,
+    assignmentsCount,
+  ] = await Promise.all([
+    Department.find({ active: true }).sort({ name: 1 }),
+    Program.find({ active: true }).populate("department").sort({ name: 1 }),
+    Semester.find({}).populate("program").sort({ number: 1 }),
+    Section.find({}).populate("department program adviser").sort({ batchYear: -1, semesterNumber: 1, code: 1 }),
+    Subject.find({ active: true }).populate("department program").sort({ semesterNumber: 1, name: 1 }),
+    FacultyProfile.find({}).populate("user department assignedSections").sort({ createdAt: -1 }),
+    StudentProfile.find({}).populate("user department program section").sort({ createdAt: -1 }),
+    Classroom.find({ active: true }).sort({ building: 1, name: 1 }),
+    Laboratory.find({ active: true }).sort({ building: 1, name: 1 }),
+    FacultyAssignment.find({}).populate("faculty subject section"),
+    FacultyAssignment.countDocuments(),
+  ]);
+
+  const sectionReadiness = sections.map((section) => {
+    const subjectCount = subjects.filter(
+      (subject) =>
+        String(subject.program?._id || subject.program) === String(section.program?._id || section.program) &&
+        subject.semesterNumber === section.semesterNumber,
+    ).length;
+    const sectionAssignments = assignments.filter(
+      (assignment) => String(assignment.section?._id || assignment.section) === String(section._id),
+    );
+    const facultyCount = new Set(
+      sectionAssignments.map((assignment) => String(assignment.faculty?._id || assignment.faculty)),
+    ).size;
+    const studentCount = students.filter(
+      (student) => String(student.section?._id || student.section) === String(section._id),
+    ).length;
+
+    return {
+      _id: String(section._id),
+      label: `${section.program?.name || "Program"} Semester ${section.semesterNumber} - ${section.name}`,
+      subjectCount,
+      facultyCount,
+      assignmentCount: sectionAssignments.length,
+      studentCount,
+    };
+  });
+
+  return {
+    departments,
+    programs,
+    semesters,
+    sections,
+    subjects,
+    faculty,
+    students,
+    classrooms,
+    laboratories,
+    readiness: {
+      departments: departments.length,
+      programs: programs.length,
+      semesters: semesters.length,
+      sections: sections.length,
+      subjects: subjects.length,
+      faculty: faculty.length,
+      students: students.length,
+      rooms: classrooms.length + laboratories.length,
+      assignments: assignmentsCount,
+    },
+    sectionReadiness,
+  };
 }
 
 export async function getAdminDashboard() {
@@ -223,7 +560,7 @@ export async function listResource(resource, query) {
 
 export async function createResource(resource, payload, actor, req) {
   const { model, modelName } = resolveResource(resource);
-  const created = await model.create(payload);
+  const created = (await createMasterResource(resource, payload, actor)) || (await model.create(payload));
 
   await createAuditLog({
     actor,
