@@ -59,7 +59,7 @@ export function PublicShell() {
                 </Link>
               ) : (
                 <Link
-                  to="/student/login"
+                  to="/?access=signin#workspace-access"
                   className="rounded-2xl border border-sky-200 bg-white px-5 py-3 text-sm font-semibold text-sky-800 no-underline"
                 >
                   Sign In

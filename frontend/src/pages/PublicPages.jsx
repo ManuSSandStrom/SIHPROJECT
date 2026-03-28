@@ -1,16 +1,18 @@
 import { motion } from "framer-motion";
 import {
+  Building2,
   BookOpenCheck,
   CalendarClock,
   ClipboardCheck,
+  GraduationCap,
   LockKeyhole,
   MessageCircleWarning,
   MessageSquareQuote,
   PanelsTopLeft,
   Phone,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -83,7 +85,214 @@ function AccessModeToggle({ value, onChange }) {
   );
 }
 
+function AccessPathButton({ active, icon, title, text, onClick }) {
+  const IconComponent = icon;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-[24px] border p-4 text-left transition ${
+        active
+          ? "border-sky-400 bg-[linear-gradient(135deg,#eff6ff_0%,#dbeafe_100%)] shadow-[0_18px_38px_rgba(37,99,235,0.14)]"
+          : "border-sky-100 bg-white/90 hover:border-sky-200 hover:bg-sky-50/60"
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        <div className={`rounded-2xl p-3 ${active ? "bg-white text-sky-700" : "bg-sky-50 text-sky-600"}`}>
+          <IconComponent size={18} />
+        </div>
+        <div>
+          <h4 className="font-semibold text-slate-950">{title}</h4>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{text}</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function WorkspaceAccessPanel() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const setSession = useAuthStore((state) => state.setSession);
+  const [workspaceMode, setWorkspaceMode] = useState("signin");
+  const [workspaceError, setWorkspaceError] = useState("");
+  const accessForm = useForm({
+    defaultValues: {
+      accountType: "student_faculty",
+      role: "student",
+      email: "",
+      password: "",
+    },
+  });
+  const accountType = accessForm.watch("accountType");
+  const selectedRole = accessForm.watch("role");
+  const isOrganization = accountType === "organization";
+
+  useEffect(() => {
+    const mode = new URLSearchParams(location.search).get("access");
+    if (mode === "register" || mode === "signin") {
+      setWorkspaceMode(mode);
+    }
+  }, [location.search]);
+
+  async function openWorkspace(values) {
+    setWorkspaceError("");
+
+    if (values.accountType === "student_faculty") {
+      if (workspaceMode === "register") {
+        navigate(values.role === "faculty" ? "/faculty/register" : "/student/register");
+        return;
+      }
+
+      navigate(values.role === "faculty" ? "/faculty/login" : "/student/login");
+      return;
+    }
+
+    if (workspaceMode === "register") {
+      setWorkspaceMode("signin");
+      setWorkspaceError("Organization workspace access uses sign in only. Enter admin credentials below.");
+      return;
+    }
+
+    try {
+      const session = await unwrap(
+        api.post("/auth/login", {
+          email: values.email,
+          password: values.password,
+        }),
+      );
+      setSession(session);
+      navigate("/admin/dashboard");
+    } catch (error) {
+      setWorkspaceError(error?.response?.data?.message || "Unable to open the organization workspace.");
+    }
+  }
+
+  return (
+    <Card className="border-sky-100 bg-[linear-gradient(180deg,#ffffff_0%,#f3f8ff_100%)] shadow-[0_28px_80px_rgba(37,99,235,0.12)]">
+      <CardBody className="space-y-6 p-8 lg:p-10">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">Workspace Access</p>
+            <h3 className="mt-3 text-3xl font-semibold text-slate-950 lg:text-5xl">
+              {workspaceMode === "register" ? "Create or request access" : "Access your dashboard"}
+            </h3>
+            <p className="mt-4 max-w-3xl text-sm leading-8 text-slate-600 lg:text-base">
+              Choose one guided entry point for students, faculty, or the organization workspace. This keeps the platform easy to use without exposing internal admin routes in the public navigation.
+            </p>
+          </div>
+          <div className="rounded-[24px] border border-sky-100 bg-white p-4 text-sky-700 shadow-[0_16px_34px_rgba(37,99,235,0.08)]">
+            <LockKeyhole size={20} />
+          </div>
+        </div>
+
+        <AccessModeToggle value={workspaceMode} onChange={setWorkspaceMode} />
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          <AccessPathButton
+            active={!isOrganization && selectedRole === "student"}
+            icon={BookOpenCheck}
+            title="Student Access"
+            text="Timetable, attendance, issue desk, lecturer feedback, and academic self-service."
+            onClick={() => {
+              accessForm.setValue("accountType", "student_faculty");
+              accessForm.setValue("role", "student");
+            }}
+          />
+          <AccessPathButton
+            active={!isOrganization && selectedRole === "faculty"}
+            icon={GraduationCap}
+            title="Faculty Access"
+            text="Teaching workspace for approved faculty with timetable, attendance, and profile tools."
+            onClick={() => {
+              accessForm.setValue("accountType", "student_faculty");
+              accessForm.setValue("role", "faculty");
+            }}
+          />
+          <AccessPathButton
+            active={isOrganization}
+            icon={Building2}
+            title="Organization Workspace"
+            text="Internal administrative access for campus operations, analytics, approvals, and reports."
+            onClick={() => {
+              accessForm.setValue("accountType", "organization");
+            }}
+          />
+        </div>
+
+        {workspaceError ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {workspaceError}
+          </div>
+        ) : null}
+
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={accessForm.handleSubmit(openWorkspace)}>
+          {isOrganization && workspaceMode === "signin" ? (
+            <>
+              <div className="md:col-span-2 rounded-[24px] border border-sky-100 bg-sky-50/70 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">Internal Access</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  This workspace is intended for internal admin sign in only. Students and faculty should use their dedicated access paths above.
+                </p>
+              </div>
+              <FormField label="Organization Email" type="email" {...accessForm.register("email")} />
+              <FormField label="Password" type="password" {...accessForm.register("password")} />
+            </>
+          ) : (
+            <>
+              <div className="rounded-[24px] border border-sky-100 bg-[linear-gradient(180deg,#f9fcff_0%,#eef6ff_100%)] px-4 py-4 text-sm leading-6 text-slate-600">
+                {workspaceMode === "register"
+                  ? `We will open the ${selectedRole === "faculty" ? "faculty approval request" : "student registration"} flow next.`
+                  : `We will open the ${selectedRole === "faculty" ? "faculty login" : "student login"} workspace next.`}
+              </div>
+              <div className="rounded-[24px] border border-sky-100 bg-white px-4 py-4 text-sm leading-6 text-slate-500">
+                {selectedRole === "faculty"
+                  ? "Faculty registration stays pending until admin approval."
+                  : "Students sign in with their academic profile and section mapping."}
+              </div>
+            </>
+          )}
+
+          <div className="md:col-span-2 flex flex-wrap items-center gap-4">
+            <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
+              {accessForm.formState.isSubmitting
+                ? "Opening..."
+                : isOrganization
+                  ? workspaceMode === "register"
+                    ? "Use Organization Sign In"
+                    : "Enter Organization Workspace"
+                  : workspaceMode === "register"
+                    ? `Continue to ${selectedRole === "faculty" ? "Faculty" : "Student"} Registration`
+                    : `Continue to ${selectedRole === "faculty" ? "Faculty" : "Student"} Sign In`}
+            </button>
+            <Link
+              to={isOrganization ? "/recover-account" : selectedRole === "faculty" ? "/faculty/login" : "/student/login"}
+              className="text-sm font-semibold text-slate-600 no-underline"
+            >
+              {isOrganization ? "Forgot password?" : "Open direct login"}
+            </Link>
+          </div>
+        </form>
+      </CardBody>
+    </Card>
+  );
+}
+
 export function HomePage() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash === "#workspace-access") {
+      const element = document.getElementById("workspace-access");
+      if (element) {
+        window.requestAnimationFrame(() => {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+    }
+  }, [location.hash]);
+
   return (
     <div className="space-y-8">
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
@@ -103,8 +312,8 @@ export function HomePage() {
             Built for real college operations with hidden admin access, pending faculty approval, timetable-driven attendance, structured lecturer reviews, and secure student issue tracking under one professional interface.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white no-underline shadow-[0_12px_28px_rgba(29,78,216,0.24)]" to="/student/login">
-              Student Sign In
+            <Link className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white no-underline shadow-[0_12px_28px_rgba(29,78,216,0.24)]" to="/?access=signin#workspace-access">
+              Open Workspace Access
             </Link>
             <Link className="rounded-2xl border border-sky-200 bg-white px-6 py-3 text-sm font-semibold text-sky-800 no-underline" to="/features">
               Explore Features
@@ -144,6 +353,10 @@ export function HomePage() {
         {heroMetrics.map((metric) => (
           <MetricCard key={metric.title} {...metric} />
         ))}
+      </section>
+
+      <section id="workspace-access">
+        <WorkspaceAccessPanel />
       </section>
     </div>
   );
@@ -191,10 +404,6 @@ export function FeaturesPage() {
 }
 
 export function ContactPage() {
-  const navigate = useNavigate();
-  const setSession = useAuthStore((state) => state.setSession);
-  const [workspaceMode, setWorkspaceMode] = useState("signin");
-  const [workspaceError, setWorkspaceError] = useState("");
   const form = useForm({
     resolver: zodResolver(contactSchema),
     defaultValues: {
@@ -206,53 +415,10 @@ export function ContactPage() {
       message: "",
     },
   });
-  const adminForm = useForm({
-    defaultValues: {
-      accountType: "student_faculty",
-      role: "student",
-      email: "",
-      password: "",
-    },
-  });
-  const accountType = adminForm.watch("accountType");
-  const selectedRole = adminForm.watch("role");
 
   async function onSubmit(values) {
     await unwrap(api.post("/contact", values));
     form.reset();
-  }
-
-  async function openWorkspace(values) {
-    setWorkspaceError("");
-
-    if (values.accountType === "student_faculty") {
-      if (workspaceMode === "register") {
-        navigate(values.role === "faculty" ? "/faculty/register" : "/student/register");
-        return;
-      }
-
-      navigate(values.role === "faculty" ? "/faculty/login" : "/student/login");
-      return;
-    }
-
-    if (workspaceMode === "register") {
-      setWorkspaceMode("signin");
-      setWorkspaceError("Organization workspace access uses sign in only. Enter admin credentials below.");
-      return;
-    }
-
-    try {
-      const session = await unwrap(
-        api.post("/auth/login", {
-          email: values.email,
-          password: values.password,
-        }),
-      );
-      setSession(session);
-      navigate("/admin/dashboard");
-    } catch (error) {
-      setWorkspaceError(error?.response?.data?.message || "Unable to open the organization workspace.");
-    }
   }
 
   return (
@@ -275,102 +441,15 @@ export function ContactPage() {
               </div>
             </div>
             <p className="text-sm leading-7 text-slate-600">
-              Public support messages come to the admin inbox, and the same page also contains the secure workspace access panel for students, faculty, and organization administrators.
+              Public support messages come to the admin inbox. Workspace access is now guided from the Home page so sign in and registration stay centralized in one place.
             </p>
-          </CardBody>
-        </Card>
-        <Card className="border-sky-100 bg-[linear-gradient(180deg,#ffffff_0%,#f3f8ff_100%)] shadow-[0_24px_70px_rgba(37,99,235,0.10)]">
-          <CardBody className="space-y-6 p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">Workspace Access</p>
-                <h3 className="mt-3 text-3xl font-semibold text-slate-950">
-                  {workspaceMode === "register" ? "Create or request access" : "Access your dashboard"}
-                </h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Use this guided access panel to move into the right workspace without exposing admin routes in the main navigation.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-sky-100 bg-white p-3 text-sky-700">
-                <LockKeyhole size={18} />
-              </div>
-            </div>
-
-            <AccessModeToggle value={workspaceMode} onChange={setWorkspaceMode} />
-
-            {workspaceError ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {workspaceError}
-              </div>
-            ) : null}
-
-            <form className="grid gap-4 md:grid-cols-2" onSubmit={adminForm.handleSubmit(openWorkspace)}>
-              <FormField
-                label="Account Type"
-                as="select"
-                options={[
-                  { value: "student_faculty", label: "Student / Faculty" },
-                  { value: "organization", label: "Organization" },
-                ]}
-                {...adminForm.register("accountType")}
-              />
-
-              {accountType === "student_faculty" ? (
-                <FormField
-                  label="Role"
-                  as="select"
-                  options={[
-                    { value: "student", label: "Student" },
-                    { value: "faculty", label: "Faculty" },
-                  ]}
-                  {...adminForm.register("role")}
-                />
-              ) : (
-                <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm leading-6 text-slate-600">
-                  Organization access is intended for internal administrators who know the secure credentials.
-                </div>
-              )}
-
-              {accountType === "organization" && workspaceMode === "signin" ? (
-                <>
-                  <FormField label="Organization Email" type="email" {...adminForm.register("email")} />
-                  <FormField label="Password" type="password" {...adminForm.register("password")} />
-                </>
-              ) : (
-                <>
-                  <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm leading-6 text-slate-600">
-                    {workspaceMode === "register"
-                      ? `We will open the ${selectedRole === "faculty" ? "faculty approval request" : "student registration"} flow next.`
-                      : `We will open the ${selectedRole === "faculty" ? "faculty login" : "student login"} workspace next.`}
-                  </div>
-                  <div className="rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm leading-6 text-slate-500">
-                    {selectedRole === "faculty"
-                      ? "Faculty registration stays pending until admin approval."
-                      : "Students sign in with their academic profile and section mapping."}
-                  </div>
-                </>
-              )}
-
-              <div className="md:col-span-2 flex flex-wrap items-center gap-4">
-                <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
-                  {adminForm.formState.isSubmitting
-                    ? "Opening..."
-                    : accountType === "organization"
-                      ? workspaceMode === "register"
-                        ? "Use Organization Sign In"
-                        : "Enter Organization Workspace"
-                      : workspaceMode === "register"
-                        ? `Continue to ${selectedRole === "faculty" ? "Faculty" : "Student"} Registration`
-                        : `Continue to ${selectedRole === "faculty" ? "Faculty" : "Student"} Sign In`}
-                </button>
-                <Link
-                  to={accountType === "organization" ? "/recover-account" : selectedRole === "faculty" ? "/faculty/login" : "/student/login"}
-                  className="text-sm font-semibold text-slate-600 no-underline"
-                >
-                  {accountType === "organization" ? "Forgot password?" : "Open direct login"}
-                </Link>
-              </div>
-            </form>
+            <Link
+              to="/?access=signin#workspace-access"
+              className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 bg-white px-5 py-3 text-sm font-semibold text-sky-800 no-underline"
+            >
+              <LockKeyhole size={16} />
+              Open Workspace Access on Home
+            </Link>
           </CardBody>
         </Card>
       </div>
