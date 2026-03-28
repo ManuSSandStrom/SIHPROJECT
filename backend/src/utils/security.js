@@ -3,6 +3,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { env, isProduction } from "../config/env.js";
 import { TOKEN_COOKIE } from "../constants/app.js";
+import { ApiError } from "./api.js";
 
 const bcryptSaltRounds = Math.min(Math.max(Number(env.bcryptSaltRounds || 10), 8), 14);
 
@@ -51,11 +52,19 @@ export function signRefreshToken(user, tokenId) {
 }
 
 export function verifyAccessToken(token) {
-  return jwt.verify(token, env.jwtSecret);
+  try {
+    return jwt.verify(token, env.jwtSecret);
+  } catch {
+    throw new ApiError(401, "Authentication token is invalid or expired.");
+  }
 }
 
 export function verifyRefreshToken(token) {
-  return jwt.verify(token, env.jwtRefreshSecret);
+  try {
+    return jwt.verify(token, env.jwtRefreshSecret);
+  } catch {
+    throw new ApiError(401, "Refresh session is invalid or expired.");
+  }
 }
 
 export function setRefreshCookie(res, token) {

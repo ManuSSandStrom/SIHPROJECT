@@ -357,25 +357,29 @@ export async function refreshSession(rawRefreshToken, res) {
 
 export async function logout(rawRefreshToken, req, res) {
   if (rawRefreshToken) {
-    const decoded = verifyRefreshToken(rawRefreshToken);
-    await RefreshToken.findOneAndUpdate(
-      {
-        tokenId: decoded.tokenId,
-      },
-      {
-        revokedAt: new Date(),
-      },
-    );
+    try {
+      const decoded = verifyRefreshToken(rawRefreshToken);
+      await RefreshToken.findOneAndUpdate(
+        {
+          tokenId: decoded.tokenId,
+        },
+        {
+          revokedAt: new Date(),
+        },
+      );
 
-    const user = decoded?.sub ? await User.findById(decoded.sub) : null;
-    if (user) {
-      await createAuditLog({
-        actor: user,
-        action: AUDIT_ACTIONS.LOGOUT,
-        entity: "User",
-        entityId: user._id,
-        req,
-      });
+      const user = decoded?.sub ? await User.findById(decoded.sub) : null;
+      if (user) {
+        await createAuditLog({
+          actor: user,
+          action: AUDIT_ACTIONS.LOGOUT,
+          entity: "User",
+          entityId: user._id,
+          req,
+        });
+      }
+    } catch {
+      // Invalid or expired refresh cookies should still be cleared gracefully.
     }
   }
 
