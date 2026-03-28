@@ -268,7 +268,9 @@ export function ContactPage() {
                 Send to Admin Inbox
               </button>
             </div>
-            <div className="md:col-span-2 flex items-center justify-end border-t border-slate-100 pt-4">
+          </form>
+          <div className="mt-6 border-t border-slate-100 pt-4">
+            <div className="flex items-center justify-end">
               <button
                 type="button"
                 className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-800"
@@ -279,7 +281,7 @@ export function ContactPage() {
               </button>
             </div>
             {showAdminLock ? (
-              <div className="md:col-span-2 rounded-[24px] border border-sky-100 bg-sky-50/70 p-5">
+              <div className="mt-4 rounded-[24px] border border-sky-100 bg-sky-50/70 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h3 className="text-base font-semibold text-slate-950">Hidden administrator access</h3>
@@ -304,7 +306,7 @@ export function ContactPage() {
                 </form>
               </div>
             ) : null}
-          </form>
+          </div>
         </CardBody>
       </Card>
     </div>
