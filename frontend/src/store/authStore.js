@@ -20,11 +20,11 @@ export const useAuthStore = create((set, get) => ({
   setSession: ({ user, accessToken }) => {
     const next = { user, accessToken };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    set(next);
+    set({ ...next, initialized: true, loading: false });
   },
   clearSession: () => {
     window.localStorage.removeItem(STORAGE_KEY);
-    set({ user: null, accessToken: "" });
+    set({ user: null, accessToken: "", initialized: true, loading: false });
   },
   bootstrapSession: async () => {
     if (get().initialized) {

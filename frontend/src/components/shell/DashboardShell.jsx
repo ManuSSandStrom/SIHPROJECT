@@ -29,17 +29,17 @@ export function DashboardShell() {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f5f9ff_0%,#eef4ff_100%)]">
       <div className="grid min-h-screen lg:grid-cols-[290px_1fr]">
-        <aside className={`${open ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-40 flex w-[290px] flex-col gap-6 border-r border-sky-100 bg-[linear-gradient(180deg,#0b1b39_0%,#17336b_100%)] p-6 text-white shadow-2xl transition-transform duration-300 lg:static lg:translate-x-0`}>
+        <aside className={`${open ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-40 flex w-[290px] flex-col gap-6 border-r border-sky-300/15 bg-[linear-gradient(180deg,#0b1730_0%,#15356d_58%,#1e3f86_100%)] p-6 text-white shadow-2xl transition-transform duration-300 lg:static lg:translate-x-0`}>
           <div>
             <Link to="/" className="no-underline">
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-200">Smart Classroom</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-100">Smart Classroom</p>
               <h2 className="mt-3 text-2xl font-semibold text-white">Unified Campus Workspace</h2>
             </Link>
           </div>
-          <div className="rounded-[24px] border border-white/10 bg-white/10 p-4">
-            <p className="text-xs uppercase tracking-[0.25em] text-sky-200">Signed In</p>
+          <div className="rounded-[24px] border border-sky-300/15 bg-slate-950/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <p className="text-xs uppercase tracking-[0.25em] text-sky-100">Signed In</p>
             <h3 className="mt-2 text-lg font-semibold">{user?.fullName}</h3>
-            <p className="mt-1 text-sm text-sky-100">{user?.role}</p>
+            <p className="mt-1 text-sm capitalize text-slate-200">{user?.role}</p>
           </div>
           <nav className="space-y-2">
             {navigation.map((item) => (
@@ -51,7 +51,7 @@ export function DashboardShell() {
                   `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium no-underline ${
                     isActive || location.pathname === item.to
                       ? "bg-white text-slate-950"
-                      : "text-sky-100 hover:bg-white/10"
+                      : "text-slate-100 hover:bg-white/12 hover:text-white"
                   }`
                 }
               >

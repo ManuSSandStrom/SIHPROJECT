@@ -4,8 +4,10 @@ import jwt from "jsonwebtoken";
 import { env, isProduction } from "../config/env.js";
 import { TOKEN_COOKIE } from "../constants/app.js";
 
+const bcryptSaltRounds = Math.min(Math.max(Number(env.bcryptSaltRounds || 10), 8), 14);
+
 export async function hashPassword(password) {
-  return bcrypt.hash(password, 12);
+  return bcrypt.hash(password, bcryptSaltRounds);
 }
 
 export async function comparePassword(password, hash) {
@@ -14,6 +16,10 @@ export async function comparePassword(password, hash) {
 
 export function randomToken(bytes = 32) {
   return crypto.randomBytes(bytes).toString("hex");
+}
+
+export function randomOtpCode() {
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 export function sha256(value) {

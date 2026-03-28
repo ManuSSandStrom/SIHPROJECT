@@ -4,7 +4,7 @@ import { PublicShell } from "../components/shell/PublicShell";
 import { DashboardShell } from "../components/shell/DashboardShell";
 import { useAuthStore } from "../store/authStore";
 import { HomePage, FeaturesPage, ContactPage } from "../pages/PublicPages";
-import { AdminAccessPage, FacultyAccessPage, StudentAccessPage } from "../pages/AuthPages";
+import { AdminAccessPage, FacultyAccessPage, PasswordRecoveryPage, StudentAccessPage } from "../pages/AuthPages";
 import {
   AdminDashboardPage,
   FacultyDashboardPage,
@@ -53,6 +53,8 @@ export function AppRouter() {
         <Route path="/faculty/login" element={<FacultyAccessPage mode="login" />} />
         <Route path="/faculty/register" element={<FacultyAccessPage mode="register" />} />
         <Route path="/admin/login" element={<AdminAccessPage />} />
+        <Route path="/recover-account" element={<PasswordRecoveryPage />} />
+        <Route path="/reset-password" element={<PasswordRecoveryPage />} />
       </Route>
 
       <Route

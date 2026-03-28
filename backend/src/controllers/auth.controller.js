@@ -2,6 +2,7 @@ import { TOKEN_COOKIE } from "../constants/app.js";
 import {
   ensureDefaultAdmin,
   forgotPassword,
+  getAcademicOptions,
   getCurrentUser,
   login,
   logout,
@@ -9,6 +10,7 @@ import {
   registerFaculty,
   registerStudent,
   resetPassword,
+  resetPasswordWithOtp,
 } from "../services/auth.service.js";
 import { asyncHandler, sendSuccess } from "../utils/api.js";
 
@@ -25,6 +27,10 @@ export const authController = {
       "Faculty registration submitted and pending approval.",
       201,
     );
+  }),
+  academicOptions: asyncHandler(async (_req, res) => {
+    const options = await getAcademicOptions();
+    return sendSuccess(res, options);
   }),
   login: asyncHandler(async (req, res) => {
     const session = await login(req.body, req, res);
@@ -48,6 +54,10 @@ export const authController = {
   }),
   resetPassword: asyncHandler(async (req, res) => {
     const result = await resetPassword(req.body, req);
+    return sendSuccess(res, result, "Password reset successful.");
+  }),
+  resetPasswordWithOtp: asyncHandler(async (req, res) => {
+    const result = await resetPasswordWithOtp(req.body, req);
     return sendSuccess(res, result, "Password reset successful.");
   }),
   ensureDefaultAdmin: asyncHandler(async (req, res) => {

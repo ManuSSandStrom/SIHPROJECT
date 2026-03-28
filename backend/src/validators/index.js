@@ -44,6 +44,12 @@ export const authSchemas = {
     token: z.string().min(12),
     password: z.string().min(8),
   }),
+  resetPasswordWithOtp: z.object({
+    email: z.string().email(),
+    requestId: z.string().min(12),
+    otp: z.string().regex(/^\d{6}$/),
+    password: z.string().min(8),
+  }),
 };
 
 export const timetableSchemas = {

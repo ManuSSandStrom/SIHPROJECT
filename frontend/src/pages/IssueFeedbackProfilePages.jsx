@@ -303,7 +303,7 @@ export function NotificationsPage() {
               <div>
                 <h3 className="font-semibold text-slate-950">{item.title}</h3>
                 <p className="mt-2 text-sm text-slate-600">{item.message}</p>
-                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">{formatDate(item.createdAt, "dd MMM yyyy, hh:mm a")}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{formatDate(item.createdAt, "dd MMM yyyy, hh:mm a")}</p>
               </div>
               <button type="button" className="rounded-2xl border border-sky-200 px-4 py-3 text-sm font-semibold text-sky-800" onClick={() => unwrap(api.post(`/notifications/${item._id}/read`))}>
                 Mark Read
@@ -330,19 +330,19 @@ export function ProfilePage() {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Full Name</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Full Name</p>
               <p className="mt-2 text-lg font-semibold text-slate-950">{user?.fullName}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Email</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Email</p>
               <p className="mt-2 text-lg font-semibold text-slate-950">{user?.email}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Role</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Role</p>
               <p className="mt-2"><Badge>{user?.role}</Badge></p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Status</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Status</p>
               <p className="mt-2"><Badge tone={user?.status === "active" ? "success" : "warning"}>{user?.status}</Badge></p>
             </div>
           </div>

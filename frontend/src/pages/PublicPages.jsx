@@ -85,9 +85,9 @@ export function HomePage() {
             </Link>
           </div>
         </MotionDiv>
-        <Card className="bg-slate-950 text-white">
+        <Card className="border-slate-900/70 bg-[linear-gradient(180deg,#0f172a_0%,#162447_100%)] text-white shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
           <CardBody className="p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-100">
               Platform Modules
             </p>
             <div className="mt-6 space-y-4">
@@ -97,14 +97,14 @@ export function HomePage() {
                 { icon: ClipboardCheck, title: "Attendance intelligence", text: "Daily sessions, overrides, shortage detection, and analytics are unified." },
                 { icon: BookOpenCheck, title: "Academic control", text: "Departments, programs, sections, subjects, rooms, and assignments are centrally managed." },
               ].map((item) => (
-                <div key={item.title} className="rounded-[24px] border border-white/10 bg-white/5 p-4">
+                <div key={item.title} className="rounded-[24px] border border-sky-400/20 bg-slate-900/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                   <div className="flex items-start gap-4">
-                    <div className="rounded-2xl bg-white/10 p-3 text-sky-200">
+                    <div className="rounded-2xl border border-sky-300/20 bg-sky-400/12 p-3 text-sky-100">
                       <item.icon size={18} />
                     </div>
                     <div>
-                      <h3 className="font-semibold">{item.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-sky-100/80">{item.text}</p>
+                      <h3 className="font-semibold text-slate-50">{item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-200">{item.text}</p>
                     </div>
                   </div>
                 </div>

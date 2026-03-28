@@ -46,3 +46,13 @@ export async function sendEmail({ to, subject, html, text }) {
 
   return { delivered: true };
 }
+
+export function queueEmail(message) {
+  Promise.resolve()
+    .then(() => sendEmail(message))
+    .catch((error) => {
+      console.error("[email:queue]", error);
+    });
+
+  return { queued: true };
+}

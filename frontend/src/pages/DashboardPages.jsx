@@ -19,13 +19,13 @@ function WeeklyGrid({ timetable }) {
             .filter((entry) => entry.day === day)
             .sort((a, b) => a.periodNumber - b.periodNumber);
           return (
-            <div key={day} className="rounded-[24px] border border-sky-100 bg-sky-50/60 p-3">
+            <div key={day} className="rounded-[24px] border border-sky-100 bg-sky-50/80 p-3">
               <div className="mb-3 flex items-center justify-between">
                 <h4 className="font-semibold text-slate-950">{day}</h4>
                 {day === "Sunday" ? <Badge tone="warning">Special</Badge> : null}
               </div>
               <div className="space-y-3">
-                {!entries.length ? <div className="rounded-2xl bg-white/80 px-3 py-4 text-sm text-slate-400">No sessions</div> : null}
+                {!entries.length ? <div className="rounded-2xl bg-white/90 px-3 py-4 text-sm text-slate-500">No sessions</div> : null}
                 {entries.map((entry) => (
                   <div key={entry._id || `${entry.day}-${entry.periodNumber}`} className="rounded-2xl bg-white p-3 shadow-sm">
                     <p className="text-sm font-semibold text-slate-950">{entry.subject?.name || "Subject"}</p>
