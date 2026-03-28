@@ -182,12 +182,13 @@ export async function seedDatabase() {
     features: ["40 Systems", "Smart Panel", "Backup Power"],
   });
 
+  const studentPasswordHash = await hashPassword("Student@123");
   const studentUsers = await Promise.all(
     ["Aarav", "Diya", "Ishaan", "Nisha", "Rahul"].map((name, index) =>
       User.create({
         fullName: `${name} Student`,
         email: `${name.toLowerCase()}${index + 1}@student.college.edu`,
-        passwordHash: await hashPassword("Student@123"),
+        passwordHash: studentPasswordHash,
         role: ROLES.STUDENT,
         status: USER_STATUSES.ACTIVE,
       }),
