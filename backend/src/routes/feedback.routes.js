@@ -9,7 +9,7 @@ const router = Router();
 router.use(protectRoute);
 router.get("/cycles", feedbackController.listCycles);
 router.get("/eligible-faculty", allowRoles("student"), feedbackController.eligibleFaculty);
-router.get("/submissions", feedbackController.listSubmissions);
+router.get("/submissions", allowRoles("admin"), feedbackController.listSubmissions);
 router.get("/analytics", allowRoles("admin"), feedbackController.analytics);
 router.post("/templates", allowRoles("admin"), validate(feedbackSchemas.template), feedbackController.createTemplate);
 router.post("/cycles", allowRoles("admin"), validate(feedbackSchemas.cycle), feedbackController.createCycle);

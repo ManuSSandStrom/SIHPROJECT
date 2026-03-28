@@ -143,15 +143,29 @@ export function IssuesWorkspacePage({ role }) {
 
 export function FeedbackWorkspacePage({ role }) {
   const isAdmin = role === "admin";
-  const isFaculty = role === "faculty";
   const isStudent = role === "student";
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [feedbackMessage, setFeedbackMessage] = useState(null);
   const analytics = useApiState(
     () => (isAdmin ? unwrap(api.get("/feedback/analytics")) : Promise.resolve(null)),
-    `feedback-analytics-${role}`,
+    `feedback-analytics-${role}-${refreshKey}`,
   );
-  const cycles = useApiState(() => unwrap(api.get("/feedback/cycles?active=true")), `feedback-cycles-${role}`);
-  const targets = useApiState(() => (isStudent ? unwrap(api.get("/feedback/eligible-faculty")) : Promise.resolve([])), `feedback-targets-${role}`);
-  const submissions = useApiState(() => ((isAdmin || isFaculty) ? unwrap(api.get("/feedback/submissions")) : Promise.resolve([])), `feedback-submissions-${role}`);
+  const cycles = useApiState(
+    () => unwrap(api.get(isAdmin ? "/feedback/cycles" : "/feedback/cycles?active=true")),
+    `feedback-cycles-${role}-${refreshKey}`,
+  );
+  const targets = useApiState(
+    () => (isStudent ? unwrap(api.get("/feedback/eligible-faculty")) : Promise.resolve([])),
+    `feedback-targets-${role}-${refreshKey}`,
+  );
+  const templates = useApiState(
+    () => (isAdmin ? unwrap(api.get("/admin/master/templates")) : Promise.resolve(null)),
+    `feedback-templates-${role}-${refreshKey}`,
+  );
+  const setup = useApiState(
+    () => (isAdmin ? unwrap(api.get("/admin/setup-options")) : Promise.resolve(null)),
+    `feedback-setup-${role}-${refreshKey}`,
+  );
   const templateForm = useForm({
     defaultValues: {
       name: "Custom Teaching Template",
@@ -159,139 +173,308 @@ export function FeedbackWorkspacePage({ role }) {
       questions: JSON.stringify([{ key: "teaching_quality", label: "Teaching quality", category: "teaching_quality", type: "rating", maxScore: 5 }], null, 2),
     },
   });
+  const cycleForm = useForm({
+    defaultValues: {
+      title: "Mid-Semester Faculty Feedback",
+      feedbackTemplateId: "",
+      departmentId: "",
+      programId: "",
+      semesterNumber: "",
+      sectionId: "",
+      startsAt: toDateTimeInputValue(new Date()),
+      endsAt: toDateTimeInputValue(new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)),
+      active: true,
+    },
+  });
   const feedbackForm = useForm({
     defaultValues: {
       cycleId: "",
       facultyId: "",
       subjectId: "",
-      teaching: 5,
-      clarity: 5,
-      punctuality: 5,
-      communication: 5,
+      responses: {},
       strengths: "",
       areasToImprove: "",
       additionalComments: "",
       isAnonymous: true,
     },
   });
+  const selectedCycleId = feedbackForm.watch("cycleId");
+  const selectedFacultyId = feedbackForm.watch("facultyId");
+  const selectedAdminDepartmentId = cycleForm.watch("departmentId");
+  const selectedAdminProgramId = cycleForm.watch("programId");
+  const selectedCycle = (cycles.data || []).find((cycle) => cycle._id === selectedCycleId) || null;
+  const templateItems = templates.data?.items || [];
+  const departments = setup.data?.departments || [];
+  const programs = setup.data?.programs || [];
+  const sections = setup.data?.sections || [];
+  const activeTargets = (targets.data || []).filter(
+    (target) => !selectedFacultyId || target.facultyId === selectedFacultyId,
+  );
 
   useEffect(() => {
-    if (targets.data?.length) {
+    if (targets.data?.length && !feedbackForm.getValues("facultyId")) {
       feedbackForm.setValue("facultyId", targets.data[0].facultyId);
       feedbackForm.setValue("subjectId", targets.data[0].subjectId);
     }
-    if (cycles.data?.length) {
+    if (cycles.data?.length && !feedbackForm.getValues("cycleId")) {
       feedbackForm.setValue("cycleId", cycles.data[0]._id);
     }
   }, [cycles.data, feedbackForm, targets.data]);
 
+  useEffect(() => {
+    if (!activeTargets.length) {
+      return;
+    }
+
+    const currentSubjectId = feedbackForm.getValues("subjectId");
+    if (!activeTargets.some((target) => target.subjectId === currentSubjectId)) {
+      feedbackForm.setValue("subjectId", activeTargets[0].subjectId);
+    }
+  }, [activeTargets, feedbackForm]);
+
+  useEffect(() => {
+    if (!selectedCycle?.feedbackTemplate?.questions?.length) {
+      return;
+    }
+
+    selectedCycle.feedbackTemplate.questions.forEach((question) => {
+      if (question.type === "rating") {
+        feedbackForm.setValue(`responses.${question.key}.score`, String(question.maxScore || 5));
+      } else {
+        feedbackForm.setValue(`responses.${question.key}.value`, "");
+      }
+    });
+  }, [feedbackForm, selectedCycle]);
+
   async function createTemplate(values) {
-    await unwrap(api.post("/feedback/templates", { name: values.name, description: values.description, questions: JSON.parse(values.questions) }));
+    try {
+      await unwrap(api.post("/feedback/templates", { name: values.name, description: values.description, questions: JSON.parse(values.questions) }));
+      setFeedbackMessage({ tone: "success", message: "Feedback template created and ready for admin cycles." });
+      setRefreshKey((value) => value + 1);
+    } catch (error) {
+      setFeedbackMessage({ tone: "error", message: error.response?.data?.message || "Unable to create the feedback template." });
+    }
+  }
+
+  async function createCycle(values) {
+    try {
+      await unwrap(
+        api.post("/feedback/cycles", {
+          title: values.title,
+          feedbackTemplateId: values.feedbackTemplateId,
+          departmentId: values.departmentId || undefined,
+          programId: values.programId || undefined,
+          semesterNumber: values.semesterNumber ? Number(values.semesterNumber) : undefined,
+          sectionId: values.sectionId || undefined,
+          startsAt: new Date(values.startsAt).toISOString(),
+          endsAt: new Date(values.endsAt).toISOString(),
+          active: Boolean(values.active),
+        }),
+      );
+      setFeedbackMessage({ tone: "success", message: "Feedback cycle published. Eligible students can now see and submit this form." });
+      setRefreshKey((value) => value + 1);
+    } catch (error) {
+      setFeedbackMessage({ tone: "error", message: error.response?.data?.message || "Unable to create the feedback cycle." });
+    }
   }
 
   async function submitStudentFeedback(values) {
-    await unwrap(
-      api.post("/feedback/submit", {
-        cycleId: values.cycleId,
-        facultyId: values.facultyId,
-        subjectId: values.subjectId,
-        responses: [
-          { key: "teaching_quality", label: "Teaching quality", category: "teaching_quality", score: Number(values.teaching) },
-          { key: "clarity_of_explanation", label: "Clarity of explanation", category: "clarity_of_explanation", score: Number(values.clarity) },
-          { key: "punctuality", label: "Punctuality", category: "punctuality", score: Number(values.punctuality) },
-          { key: "communication_skills", label: "Communication skills", category: "communication_skills", score: Number(values.communication) },
-        ],
-        strengths: values.strengths,
-        areasToImprove: values.areasToImprove,
-        additionalComments: values.additionalComments,
-        isAnonymous: values.isAnonymous,
-      }),
-    );
-  }
+    if (!selectedCycle?.feedbackTemplate?.questions?.length) {
+      setFeedbackMessage({ tone: "error", message: "Select an active admin-published feedback form before submitting." });
+      return;
+    }
 
-  if (isFaculty) {
-    return (
-      <div className="space-y-6">
-        <PageHeader eyebrow="Faculty Feedback" title="View submitted lecturer feedback responses" description="Review aggregated submissions routed to your faculty profile." />
-        <DataTable
-          title="Feedback Submissions"
-          description="Responses submitted in active or historic cycles."
-          data={submissions.data || []}
-          columns={[
-            { header: "Cycle", accessorFn: (row) => row.cycle?.title, cell: (info) => info.getValue() },
-            { header: "Subject", accessorFn: (row) => row.subject?.name, cell: (info) => info.getValue() },
-            { header: "Average Rating", accessorFn: (row) => row.averageRating, cell: (info) => `${info.getValue()}/5` },
-            { header: "Date", accessorFn: (row) => formatDate(row.createdAt), cell: (info) => info.getValue() },
-          ]}
-        />
-      </div>
-    );
+    try {
+      await unwrap(
+        api.post("/feedback/submit", {
+          cycleId: values.cycleId,
+          facultyId: values.facultyId,
+          subjectId: values.subjectId,
+          responses: selectedCycle.feedbackTemplate.questions.map((question) => {
+            const response = values.responses?.[question.key] || {};
+            if (question.type === "rating") {
+              return {
+                key: question.key,
+                label: question.label,
+                category: question.category,
+                score: Number(response.score),
+              };
+            }
+
+            return {
+              key: question.key,
+              label: question.label,
+              category: question.category,
+              value: response.value || "",
+            };
+          }),
+          strengths: values.strengths,
+          areasToImprove: values.areasToImprove,
+          additionalComments: values.additionalComments,
+          isAnonymous: values.isAnonymous,
+        }),
+      );
+      setFeedbackMessage({ tone: "success", message: "Feedback submitted successfully. Only admin can review the results." });
+      setRefreshKey((value) => value + 1);
+    } catch (error) {
+      setFeedbackMessage({ tone: "error", message: error.response?.data?.message || "Unable to submit feedback right now." });
+    }
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Lecturer Feedback" title={isAdmin ? "Template, cycle, and analytics management" : "Submit structured lecturer feedback"} description={isAdmin ? "Monitor lecturer performance trends, template design, and cycle activity." : "You can submit only one feedback response per lecturer per active cycle."} />
+      <PageHeader eyebrow="Lecturer Feedback" title={isAdmin ? "Create feedback forms and send them to students" : "Submit the feedback forms published by admin"} description={isAdmin ? "Build templates, launch targeted feedback cycles for students, and keep results visible only inside the admin portal." : "Only admin-published forms appear here, and faculty cannot view your submitted feedback."} />
+      {feedbackMessage ? (
+        <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackMessage.tone === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+          {feedbackMessage.message}
+        </div>
+      ) : null}
       {isAdmin ? (
-        <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <Card>
-            <CardHeader title="Create Feedback Template" description="Define structured question sets for lecturer evaluation." />
-            <CardBody>
+            <CardHeader title="Admin Feedback Builder" description="Create the template first, then publish a cycle so eligible students receive the form." />
+            <CardBody className="space-y-6">
               <form className="grid gap-4" onSubmit={templateForm.handleSubmit(createTemplate)}>
                 <FormField label="Template Name" {...templateForm.register("name")} />
                 <FormField label="Description" {...templateForm.register("description")} />
                 <FormField label="Questions JSON" as="textarea" {...templateForm.register("questions")} />
                 <button type="submit" className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">Create Template</button>
               </form>
+              <div className="h-px bg-slate-100" />
+              <form className="grid gap-4 md:grid-cols-2" onSubmit={cycleForm.handleSubmit(createCycle)}>
+                <div className="md:col-span-2">
+                  <FormField label="Cycle Title" {...cycleForm.register("title")} />
+                </div>
+                <FormField label="Feedback Template" as="select" options={[{ value: "", label: "Select template", disabled: true }, ...templateItems.map((template) => ({ value: template._id, label: template.name }))]} {...cycleForm.register("feedbackTemplateId")} />
+                <FormField label="Department" as="select" options={[{ value: "", label: "All departments" }, ...departments.map((department) => ({ value: department._id, label: `${department.name} (${department.code})` }))]} {...cycleForm.register("departmentId")} />
+                <FormField label="Program" as="select" options={[{ value: "", label: "All programs" }, ...programs.filter((program) => !selectedAdminDepartmentId || String(program.department?._id || program.department) === String(selectedAdminDepartmentId)).map((program) => ({ value: program._id, label: `${program.name} (${program.code})` }))]} {...cycleForm.register("programId")} />
+                <FormField label="Semester Number" type="number" min="1" max="12" {...cycleForm.register("semesterNumber")} />
+                <FormField label="Section" as="select" options={[{ value: "", label: "All eligible sections" }, ...sections.filter((section) => (!selectedAdminDepartmentId || String(section.department?._id || section.department) === String(selectedAdminDepartmentId)) && (!selectedAdminProgramId || String(section.program?._id || section.program) === String(selectedAdminProgramId))).map((section) => ({ value: section._id, label: `${section.program?.name || "Program"} Semester ${section.semesterNumber} - ${section.name}` }))]} {...cycleForm.register("sectionId")} />
+                <FormField label="Starts At" type="datetime-local" {...cycleForm.register("startsAt")} />
+                <FormField label="Ends At" type="datetime-local" {...cycleForm.register("endsAt")} />
+                <label className="md:col-span-2 flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3 text-sm text-slate-700">
+                  <input type="checkbox" {...cycleForm.register("active")} />
+                  Publish immediately so students can see this form now
+                </label>
+                <div className="md:col-span-2">
+                  <button type="submit" className="rounded-2xl bg-sky-700 px-5 py-3 text-sm font-semibold text-white">Create Cycle and Send to Students</button>
+                </div>
+              </form>
             </CardBody>
           </Card>
           <div className="space-y-6">
             <TrendChart title="Faculty Rating Overview" description="Average lecturer ratings across current filters." data={analytics.data?.facultySummary || []} dataKey="averageRating" labelKey="facultyName" variant="bar" />
             <DataTable
-              title="Feedback Submissions"
-              description="Submission-level feedback records."
+              title="Published Feedback Cycles"
+              description="Students only see active cycles that match their department, semester, or section."
+              data={cycles.data || []}
+              columns={[
+                { header: "Title", accessorFn: (row) => row.title, cell: (info) => info.getValue() },
+                { header: "Template", accessorFn: (row) => row.feedbackTemplate?.name || "-", cell: (info) => info.getValue() },
+                { header: "Audience", accessorFn: (row) => getCycleAudienceLabel(row), cell: (info) => info.getValue() },
+                { header: "Window", accessorFn: (row) => `${formatDate(row.startsAt)} to ${formatDate(row.endsAt)}`, cell: (info) => info.getValue() },
+                { header: "Status", accessorFn: (row) => (row.active ? "Active" : "Draft"), cell: (info) => info.getValue() },
+              ]}
+            />
+            <DataTable
+              title="Admin-Only Results"
+              description="Submission-level feedback records visible only inside the admin portal."
               data={analytics.data?.submissions || []}
               columns={[
                 { header: "Faculty", accessorFn: (row) => row.faculty?.user?.fullName, cell: (info) => info.getValue() },
                 { header: "Subject", accessorFn: (row) => row.subject?.name, cell: (info) => info.getValue() },
+                { header: "Cycle", accessorFn: (row) => row.cycle?.title || "-", cell: (info) => info.getValue() },
                 { header: "Rating", accessorFn: (row) => row.averageRating, cell: (info) => `${info.getValue()}/5` },
+                { header: "Date", accessorFn: (row) => formatDate(row.createdAt), cell: (info) => info.getValue() },
               ]}
             />
           </div>
         </div>
       ) : (
-        <Card>
-          <CardHeader title="Submit Feedback" description="Rate lecturers assigned to your section and add qualitative comments." />
-          <CardBody>
-            <form className="grid gap-4 md:grid-cols-2" onSubmit={feedbackForm.handleSubmit(submitStudentFeedback)}>
-              <FormField label="Cycle" as="select" options={(cycles.data || []).map((cycle) => ({ value: cycle._id, label: cycle.title }))} {...feedbackForm.register("cycleId")} />
-              <FormField label="Faculty" as="select" options={(targets.data || []).map((target) => ({ value: target.facultyId, label: `${target.facultyName} - ${target.subjectCode}` }))} {...feedbackForm.register("facultyId")} />
-              <FormField label="Subject" as="select" options={(targets.data || []).map((target) => ({ value: target.subjectId, label: target.subjectName }))} {...feedbackForm.register("subjectId")} />
-              <FormField label="Teaching Quality" as="select" options={[1, 2, 3, 4, 5].map((value) => ({ value, label: `${value}/5` }))} {...feedbackForm.register("teaching")} />
-              <FormField label="Clarity" as="select" options={[1, 2, 3, 4, 5].map((value) => ({ value, label: `${value}/5` }))} {...feedbackForm.register("clarity")} />
-              <FormField label="Punctuality" as="select" options={[1, 2, 3, 4, 5].map((value) => ({ value, label: `${value}/5` }))} {...feedbackForm.register("punctuality")} />
-              <FormField label="Communication" as="select" options={[1, 2, 3, 4, 5].map((value) => ({ value, label: `${value}/5` }))} {...feedbackForm.register("communication")} />
-              <div className="md:col-span-2">
-                <FormField label="Strengths" as="textarea" {...feedbackForm.register("strengths")} />
-              </div>
-              <div className="md:col-span-2">
-                <FormField label="Areas to Improve" as="textarea" {...feedbackForm.register("areasToImprove")} />
-              </div>
-              <div className="md:col-span-2">
-                <FormField label="Additional Comments" as="textarea" {...feedbackForm.register("additionalComments")} />
-              </div>
-              <div className="md:col-span-2 flex items-center gap-3">
-                <input type="checkbox" id="isAnonymous" {...feedbackForm.register("isAnonymous")} />
-                <label htmlFor="isAnonymous" className="text-sm text-slate-700">Keep this feedback anonymous in reports</label>
-              </div>
-              <div className="md:col-span-2">
-                <button type="submit" className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">Submit Feedback</button>
-              </div>
-            </form>
-          </CardBody>
-        </Card>
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <Card>
+            <CardHeader title="Admin-Published Forms" description="Choose the active feedback cycle that admin has opened for your academic group." />
+            <CardBody className="space-y-3">
+              {(cycles.data || []).map((cycle) => (
+                <div key={cycle._id} className="rounded-[22px] border border-sky-100 bg-sky-50/60 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-slate-950">{cycle.title}</p>
+                      <p className="mt-1 text-sm text-slate-500">{cycle.feedbackTemplate?.description || "Structured lecturer evaluation form"}</p>
+                    </div>
+                    <Badge tone={cycle.active ? "success" : "warning"}>{cycle.active ? "Active" : "Draft"}</Badge>
+                  </div>
+                  <p className="mt-3 text-xs uppercase tracking-[0.18em] text-slate-500">Window: {formatDate(cycle.startsAt)} to {formatDate(cycle.endsAt)}</p>
+                </div>
+              ))}
+              {!cycles.data?.length ? <EmptyState title="No active feedback forms" description="Admin has not published a feedback cycle for your section yet." /> : null}
+            </CardBody>
+          </Card>
+          <Card>
+            <CardHeader title="Submit Feedback" description="Your response is based on the template created by admin and is reviewed only by admin." />
+            <CardBody>
+              <form className="grid gap-4 md:grid-cols-2" onSubmit={feedbackForm.handleSubmit(submitStudentFeedback)}>
+                <FormField label="Feedback Cycle" as="select" options={[{ value: "", label: "Select active cycle", disabled: true }, ...(cycles.data || []).map((cycle) => ({ value: cycle._id, label: cycle.title }))]} {...feedbackForm.register("cycleId")} />
+                <FormField label="Faculty" as="select" options={[{ value: "", label: "Select faculty", disabled: true }, ...(targets.data || []).map((target) => ({ value: target.facultyId, label: `${target.facultyName} - ${target.subjectCode}` }))]} {...feedbackForm.register("facultyId")} />
+                <FormField label="Subject" as="select" options={[{ value: "", label: "Select subject", disabled: true }, ...activeTargets.map((target) => ({ value: target.subjectId, label: target.subjectName }))]} {...feedbackForm.register("subjectId")} />
+                <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm text-slate-600">
+                  Results are not visible to faculty. Only admin can review feedback reports and analytics.
+                </div>
+                {selectedCycle?.feedbackTemplate?.questions?.map((question) => (
+                  <div key={question.key} className={question.type === "text" ? "md:col-span-2" : ""}>
+                    {question.type === "rating" ? (
+                      <FormField label={question.label} as="select" options={Array.from({ length: question.maxScore || 5 }, (_, index) => ({ value: String(index + 1), label: `${index + 1}/${question.maxScore || 5}` }))} {...feedbackForm.register(`responses.${question.key}.score`)} />
+                    ) : (
+                      <FormField label={question.label} as="textarea" {...feedbackForm.register(`responses.${question.key}.value`)} />
+                    )}
+                  </div>
+                ))}
+                <div className="md:col-span-2">
+                  <FormField label="Strengths" as="textarea" {...feedbackForm.register("strengths")} />
+                </div>
+                <div className="md:col-span-2">
+                  <FormField label="Areas to Improve" as="textarea" {...feedbackForm.register("areasToImprove")} />
+                </div>
+                <div className="md:col-span-2">
+                  <FormField label="Additional Comments" as="textarea" {...feedbackForm.register("additionalComments")} />
+                </div>
+                <div className="md:col-span-2 flex items-center gap-3">
+                  <input type="checkbox" id="isAnonymous" {...feedbackForm.register("isAnonymous")} />
+                  <label htmlFor="isAnonymous" className="text-sm text-slate-700">Keep this feedback anonymous in admin reports</label>
+                </div>
+                <div className="md:col-span-2">
+                  <button type="submit" className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">Submit Feedback</button>
+                </div>
+              </form>
+            </CardBody>
+          </Card>
+        </div>
       )}
     </div>
   );
+}
+
+function toDateTimeInputValue(value) {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  const hours = `${date.getHours()}`.padStart(2, "0");
+  const minutes = `${date.getMinutes()}`.padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function getCycleAudienceLabel(cycle) {
+  if (cycle.section?.name) {
+    return `${cycle.section.name} | Semester ${cycle.section.semesterNumber || cycle.semesterNumber || "-"}`;
+  }
+  if (cycle.department?.name && cycle.semesterNumber) {
+    return `${cycle.department.name} | Semester ${cycle.semesterNumber}`;
+  }
+  if (cycle.department?.name) {
+    return cycle.department.name;
+  }
+  return "All mapped students";
 }
 
 export function NotificationsPage() {

@@ -35,7 +35,6 @@ export const facultyNavigation = [
   { label: "Dashboard", to: "/faculty/dashboard", icon: LayoutDashboard },
   { label: "My Timetable", to: "/faculty/timetable", icon: CalendarClock },
   { label: "Take Attendance", to: "/faculty/attendance", icon: ClipboardCheck },
-  { label: "Feedback", to: "/faculty/feedback", icon: MessageSquareQuote },
   { label: "Notifications", to: "/faculty/notifications", icon: Send },
   { label: "Profile", to: "/profile", icon: GraduationCap },
 ];

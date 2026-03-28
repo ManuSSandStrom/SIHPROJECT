@@ -79,7 +79,6 @@ export function AppRouter() {
         <Route path="/faculty/dashboard" element={<RoleGuard roles={["faculty"]}><FacultyDashboardPage /></RoleGuard>} />
         <Route path="/faculty/timetable" element={<RoleGuard roles={["faculty"]}><TimetableWorkspacePage role="faculty" /></RoleGuard>} />
         <Route path="/faculty/attendance" element={<RoleGuard roles={["faculty"]}><AttendanceWorkspacePage role="faculty" /></RoleGuard>} />
-        <Route path="/faculty/feedback" element={<RoleGuard roles={["faculty"]}><FeedbackWorkspacePage role="faculty" /></RoleGuard>} />
         <Route path="/faculty/notifications" element={<RoleGuard roles={["faculty"]}><NotificationsPage /></RoleGuard>} />
 
         <Route path="/student/dashboard" element={<RoleGuard roles={["student"]}><StudentDashboardPage /></RoleGuard>} />

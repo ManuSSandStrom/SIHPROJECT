@@ -36,6 +36,14 @@ export async function createCycle(payload, user, req) {
     feedbackTemplate: payload.feedbackTemplateId,
   });
 
+  await Notification.create({
+    title: "New lecturer feedback form published",
+    message: `A new feedback cycle "${payload.title}" is now available for students. Open the student feedback workspace to respond before the closing date.`,
+    audience: "role",
+    roles: [ROLES.STUDENT],
+    link: "/student/feedback",
+  });
+
   await createAuditLog({
     actor: user,
     action: "feedback_cycle.created",
@@ -45,6 +53,28 @@ export async function createCycle(payload, user, req) {
   });
 
   return FeedbackCycle.findById(cycle._id).populate("department program section feedbackTemplate");
+}
+
+function isCycleAvailableForStudent(cycle, studentProfile) {
+  if (!cycle || !studentProfile) {
+    return false;
+  }
+
+  const matchesSection =
+    cycle.section && String(cycle.section) === String(studentProfile.section?._id || studentProfile.section);
+  const matchesDepartmentSemester =
+    !cycle.section &&
+    cycle.department &&
+    String(cycle.department) === String(studentProfile.department?._id || studentProfile.department) &&
+    cycle.semesterNumber === studentProfile.semesterNumber;
+  const matchesDepartmentOnly =
+    !cycle.section &&
+    cycle.department &&
+    !cycle.semesterNumber &&
+    String(cycle.department) === String(studentProfile.department?._id || studentProfile.department);
+  const hasNoSpecificScope = !cycle.section && !cycle.department && !cycle.semesterNumber;
+
+  return matchesSection || matchesDepartmentSemester || matchesDepartmentOnly || hasNoSpecificScope;
 }
 
 export async function listCycles(query, user) {
@@ -106,10 +136,24 @@ export async function submitFeedback(payload, user, req) {
   if (!cycle || !cycle.active) {
     throw new ApiError(400, "Feedback cycle is not active.");
   }
+  if (!isCycleAvailableForStudent(cycle, studentProfile)) {
+    throw new ApiError(403, "This feedback cycle is not assigned to your academic mapping.");
+  }
 
   const faculty = await FacultyProfile.findById(payload.facultyId).populate("user");
   if (!faculty) {
     throw new ApiError(404, "Faculty not found.");
+  }
+
+  const assignment = await FacultyAssignment.findOne({
+    faculty: faculty._id,
+    subject: payload.subjectId,
+    section: studentProfile.section._id,
+    semesterNumber: studentProfile.semesterNumber,
+  });
+
+  if (!assignment) {
+    throw new ApiError(400, "The selected faculty and subject are not assigned to your section.");
   }
 
   const numericScores = payload.responses
@@ -154,22 +198,16 @@ export async function submitFeedback(payload, user, req) {
 }
 
 export async function listFeedbackSubmissions(query, user) {
+  if (user.role !== ROLES.ADMIN) {
+    throw new ApiError(403, "Only admin can review feedback results.");
+  }
+
   const filter = {};
   if (query.cycleId) {
     filter.cycle = query.cycleId;
   }
   if (query.facultyId) {
     filter.faculty = query.facultyId;
-  }
-
-  if (user.role === ROLES.STUDENT) {
-    const profile = await loadUserProfile(user);
-    filter.student = profile?._id;
-  }
-
-  if (user.role === ROLES.FACULTY) {
-    const faculty = await FacultyProfile.findOne({ user: user._id });
-    filter.faculty = faculty?._id;
   }
 
   return FeedbackSubmission.find(filter)
