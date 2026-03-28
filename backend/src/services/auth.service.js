@@ -10,6 +10,7 @@ import {
   PasswordResetToken,
   Program,
   RefreshToken,
+  Semester,
   Section,
   StudentProfile,
   User,
@@ -32,18 +33,60 @@ import {
   verifyRefreshToken,
 } from "../utils/security.js";
 
-async function ensureAcademicContext({ departmentId, programId, sectionId }) {
-  const [department, program, section] = await Promise.all([
+async function ensureAcademicContext({ departmentId, programId }) {
+  const [department, program] = await Promise.all([
     Department.findById(departmentId),
     Program.findById(programId),
-    Section.findById(sectionId),
   ]);
 
-  if (!department || !program || !section) {
-    throw new ApiError(400, "Invalid department, program, or section.");
+  if (!department || !program) {
+    throw new ApiError(400, "Invalid department or program.");
   }
 
-  return { department, program, section };
+  if (String(program.department) !== String(department._id)) {
+    throw new ApiError(400, "Selected program does not belong to the chosen department.");
+  }
+
+  return { department, program };
+}
+
+async function resolveOrCreateSection({ departmentId, programId, semesterNumber, batchYear, sectionName }) {
+  const normalizedSection = sectionName.trim().toUpperCase();
+  let section = await Section.findOne({
+    department: departmentId,
+    program: programId,
+    semesterNumber,
+    code: normalizedSection,
+  });
+
+  if (section) {
+    return section;
+  }
+
+  try {
+    section = await Section.create({
+      name: `Section ${normalizedSection}`,
+      code: normalizedSection,
+      department: departmentId,
+      program: programId,
+      semesterNumber,
+      batchYear,
+      strength: 60,
+    });
+  } catch (error) {
+    if (error?.code !== 11000) {
+      throw error;
+    }
+
+    section = await Section.findOne({
+      department: departmentId,
+      program: programId,
+      semesterNumber,
+      code: normalizedSection,
+    });
+  }
+
+  return section;
 }
 
 async function persistRefreshToken(user, rawToken, tokenId) {
@@ -81,7 +124,7 @@ function queuePasswordResetEmail({ email, otp, resetUrl }) {
 }
 
 export async function registerStudent(payload, req) {
-  const [existingEmail, existingCollegeId, _academicContext, passwordHash] = await Promise.all([
+  const [existingEmail, existingCollegeId, academicContext, passwordHash] = await Promise.all([
     User.findOne({ email: payload.email.toLowerCase() }),
     StudentProfile.findOne({ collegeId: payload.collegeId.toUpperCase() }),
     ensureAcademicContext(payload),
@@ -105,6 +148,14 @@ export async function registerStudent(payload, req) {
     phone: payload.phone,
   });
 
+  const section = await resolveOrCreateSection({
+    departmentId: academicContext.department._id,
+    programId: academicContext.program._id,
+    semesterNumber: payload.semesterNumber,
+    batchYear: payload.batchYear,
+    sectionName: payload.sectionName,
+  });
+
   await Promise.all([
     StudentProfile.create({
       user: user._id,
@@ -113,7 +164,7 @@ export async function registerStudent(payload, req) {
       department: payload.departmentId,
       program: payload.programId,
       semesterNumber: payload.semesterNumber,
-      section: payload.sectionId,
+      section: section._id,
       batchYear: payload.batchYear,
     }),
     createAuditLog({
@@ -121,7 +172,7 @@ export async function registerStudent(payload, req) {
       action: "student.registered",
       entity: "StudentProfile",
       entityId: user._id,
-      metadata: { collegeId: payload.collegeId },
+      metadata: { collegeId: payload.collegeId, sectionCode: section.code },
       req,
     }),
   ]);
@@ -182,13 +233,16 @@ export async function registerFaculty(payload, req) {
 }
 
 export async function getAcademicOptions() {
-  const [departments, programs, sections] = await Promise.all([
+  const [departments, programs, semesters] = await Promise.all([
     Department.find({ active: true }).sort({ name: 1 }),
     Program.find({ active: true }).sort({ name: 1 }).populate("department", "name code"),
-    Section.find({})
-      .sort({ semesterNumber: 1, batchYear: -1, name: 1 })
-      .populate("department", "name code")
-      .populate("program", "name code degreeLevel"),
+    Semester.find({})
+      .sort({ number: 1 })
+      .populate({
+        path: "program",
+        select: "name code degreeLevel department durationSemesters",
+        populate: { path: "department", select: "name code" },
+      }),
   ]);
 
   return {
@@ -204,17 +258,14 @@ export async function getAcademicOptions() {
       code: program.code,
       degreeLevel: program.degreeLevel,
       departmentId: String(program.department?._id || program.department),
-      label: `${program.name} (${program.code})`,
+      label: `${program.name} (${program.code}) - ${program.degreeLevel}`,
     })),
-    sections: sections.map((section) => ({
-      _id: String(section._id),
-      name: section.name,
-      code: section.code,
-      departmentId: String(section.department?._id || section.department),
-      programId: String(section.program?._id || section.program),
-      semesterNumber: section.semesterNumber,
-      batchYear: section.batchYear,
-      label: `${section.name} (${section.code}) | Semester ${section.semesterNumber} | ${section.batchYear}`,
+    semesters: semesters.map((semester) => ({
+      _id: String(semester._id),
+      number: semester.number,
+      title: semester.title || `Semester ${semester.number}`,
+      programId: String(semester.program?._id || semester.program),
+      label: semester.title || `Semester ${semester.number}`,
     })),
   };
 }

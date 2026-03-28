@@ -19,7 +19,7 @@ export const authSchemas = {
     departmentId: objectId,
     programId: objectId,
     semesterNumber: z.number().min(1).max(12),
-    sectionId: objectId,
+    sectionName: z.string().min(1).max(5),
     batchYear: z.number().min(2000).max(2100),
   }),
   facultyRegister: z.object({

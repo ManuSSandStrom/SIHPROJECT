@@ -28,7 +28,7 @@ const studentRegisterSchema = z.object({
   departmentId: objectIdField("Department"),
   programId: objectIdField("Program"),
   semesterNumber: z.coerce.number().min(1).max(12),
-  sectionId: objectIdField("Section"),
+  sectionName: z.string().min(1, "Enter a section like A, B, or C.").max(5, "Section should be short."),
   batchYear: z.coerce.number().min(2000).max(2100),
 });
 
@@ -45,7 +45,7 @@ const facultyRegisterSchema = z.object({
 
 const adminLoginSchema = z.object(baseAuth);
 const simpleLoginSchema = z.object(baseAuth);
-const EMPTY_ACADEMIC_OPTIONS = { departments: [], programs: [], sections: [] };
+const EMPTY_ACADEMIC_OPTIONS = { departments: [], programs: [], semesters: [] };
 const passwordField = z.string().min(8, "Password must be at least 8 characters.");
 const otpField = z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP.");
 const resetWithTokenSchema = z.object({
@@ -105,16 +105,15 @@ export function StudentAccessPage({ mode = "login" }) {
           departmentId: "",
           programId: "",
           semesterNumber: "",
-          sectionId: "",
+          sectionName: "",
           batchYear: new Date().getFullYear(),
         }
       : { email: "", password: "" },
   });
   const selectedDepartmentId = useWatch({ control: form.control, name: "departmentId" });
   const selectedProgramId = useWatch({ control: form.control, name: "programId" });
-  const selectedSemesterNumber = Number(useWatch({ control: form.control, name: "semesterNumber" }) || 0);
   const academicData = academicOptions.data || EMPTY_ACADEMIC_OPTIONS;
-  const { departments, programs, sections } = academicData;
+  const { departments, programs, semesters } = academicData;
 
   const departmentOptions = useMemo(
     () => [
@@ -139,10 +138,9 @@ export function StudentAccessPage({ mode = "login" }) {
 
   const semesterOptions = useMemo(() => {
     const semesterNumbers = [...new Set(
-      sections
-        .filter((section) => !selectedDepartmentId || section.departmentId === selectedDepartmentId)
-        .filter((section) => !selectedProgramId || section.programId === selectedProgramId)
-        .map((section) => section.semesterNumber),
+      semesters
+        .filter((semester) => !selectedProgramId || semester.programId === selectedProgramId)
+        .map((semester) => semester.number),
     )].sort((left, right) => left - right);
 
     return [
@@ -152,24 +150,7 @@ export function StudentAccessPage({ mode = "login" }) {
         label: `Semester ${semesterNumber}`,
       })),
     ];
-  }, [sections, selectedDepartmentId, selectedProgramId]);
-
-  const filteredSections = useMemo(
-    () =>
-      sections
-        .filter((section) => !selectedDepartmentId || section.departmentId === selectedDepartmentId)
-        .filter((section) => !selectedProgramId || section.programId === selectedProgramId)
-        .filter((section) => !selectedSemesterNumber || section.semesterNumber === selectedSemesterNumber),
-    [sections, selectedDepartmentId, selectedProgramId, selectedSemesterNumber],
-  );
-
-  const sectionOptions = useMemo(
-    () => [
-      { value: "", label: filteredSections.length ? "Select section" : "No sections available", disabled: true },
-      ...filteredSections.map((section) => ({ value: section._id, label: section.label })),
-    ],
-    [filteredSections],
-  );
+  }, [semesters, selectedProgramId]);
 
   useEffect(() => {
     if (!isRegister) return;
@@ -189,14 +170,6 @@ export function StudentAccessPage({ mode = "login" }) {
       form.setValue("semesterNumber", "");
     }
   }, [form, isRegister, semesterOptions, selectedProgramId]);
-
-  useEffect(() => {
-    if (!isRegister) return;
-    const currentSectionId = form.getValues("sectionId");
-    if (currentSectionId && !filteredSections.some((section) => section._id === currentSectionId)) {
-      form.setValue("sectionId", "");
-    }
-  }, [filteredSections, form, isRegister, selectedDepartmentId, selectedProgramId, selectedSemesterNumber]);
 
   async function onSubmit(values) {
     setAuthError("");
@@ -221,7 +194,7 @@ export function StudentAccessPage({ mode = "login" }) {
       <AuthIntro
         title="Student Workspace Access"
         text="Students sign in with their institutional account to view timetables, check attendance, raise secure issues, and complete lecturer feedback."
-        helper="Choose your department, program, semester, and section from the academic structure configured by the admin. Registration is now aligned to real campus onboarding rather than internal database IDs."
+        helper="Choose your department, program, and semester from the academic structure configured by the admin, then type your section manually as A, B, or C."
       />
       <Card>
         <CardHeader
@@ -256,14 +229,6 @@ export function StudentAccessPage({ mode = "login" }) {
                   {...form.register("programId")}
                 />
                 <FormField
-                  label="Section"
-                  as="select"
-                  options={sectionOptions}
-                  error={form.formState.errors.sectionId?.message}
-                  disabled={academicOptions.loading || !filteredSections.length}
-                  {...form.register("sectionId")}
-                />
-                <FormField
                   label="Semester"
                   as="select"
                   options={semesterOptions}
@@ -271,9 +236,15 @@ export function StudentAccessPage({ mode = "login" }) {
                   disabled={academicOptions.loading || semesterOptions.length <= 1}
                   {...form.register("semesterNumber")}
                 />
+                <FormField
+                  label="Section"
+                  placeholder="Enter section like A, B, or C"
+                  error={form.formState.errors.sectionName?.message}
+                  {...form.register("sectionName")}
+                />
                 <FormField label="Batch Year" type="number" error={form.formState.errors.batchYear?.message} {...form.register("batchYear")} />
-                {academicOptions.loading ? <p className="md:col-span-2 rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-slate-600">Loading department, program, and section options...</p> : null}
-                {!academicOptions.loading && !departments.length ? <p className="md:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Academic options are not available yet. Ask the admin to create departments, programs, and sections first.</p> : null}
+                {academicOptions.loading ? <p className="md:col-span-2 rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm text-slate-600">Loading department, program, and semester options...</p> : null}
+                {!academicOptions.loading && !departments.length ? <p className="md:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Academic options are not available yet. Ask the admin to seed or create departments and programs first.</p> : null}
               </>
             ) : null}
             <div className="md:col-span-2 flex flex-wrap items-center gap-4">
