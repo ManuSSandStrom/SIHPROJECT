@@ -9,7 +9,8 @@ import {
   PanelsTopLeft,
   Phone,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +19,7 @@ import { PageHeader } from "../components/common/PageHeader";
 import { Card, CardBody, CardHeader } from "../components/common/Card";
 import { MetricCard } from "../components/common/MetricCard";
 import { FormField } from "../components/forms/FormField";
+import { useAuthStore } from "../store/authStore";
 
 const contactSchema = z.object({
   name: z.string().min(2),
@@ -77,7 +79,7 @@ export function HomePage() {
             Built for real college operations with hidden admin access, pending faculty approval, timetable-driven attendance, structured lecturer reviews, and secure student issue tracking under one professional interface.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white no-underline" to="/student/login">
+            <Link className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white no-underline shadow-[0_12px_28px_rgba(29,78,216,0.24)]" to="/student/login">
               Student Sign In
             </Link>
             <Link className="rounded-2xl border border-sky-200 bg-white px-6 py-3 text-sm font-semibold text-sky-800 no-underline" to="/features">
@@ -85,9 +87,9 @@ export function HomePage() {
             </Link>
           </div>
         </MotionDiv>
-        <Card className="border-slate-900/70 bg-[linear-gradient(180deg,#0f172a_0%,#162447_100%)] text-white shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
+        <Card className="border-sky-100 bg-[linear-gradient(180deg,#f7fbff_0%,#edf5ff_54%,#dbeafe_100%)] shadow-[0_24px_70px_rgba(37,99,235,0.12)]">
           <CardBody className="p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-100">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
               Platform Modules
             </p>
             <div className="mt-6 space-y-4">
@@ -97,14 +99,14 @@ export function HomePage() {
                 { icon: ClipboardCheck, title: "Attendance intelligence", text: "Daily sessions, overrides, shortage detection, and analytics are unified." },
                 { icon: BookOpenCheck, title: "Academic control", text: "Departments, programs, sections, subjects, rooms, and assignments are centrally managed." },
               ].map((item) => (
-                <div key={item.title} className="rounded-[24px] border border-sky-400/20 bg-slate-900/45 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <div key={item.title} className="rounded-[24px] border border-sky-100 bg-white/80 p-4 shadow-[0_12px_28px_rgba(37,99,235,0.08)]">
                   <div className="flex items-start gap-4">
-                    <div className="rounded-2xl border border-sky-300/20 bg-sky-400/12 p-3 text-sky-100">
+                    <div className="rounded-2xl border border-sky-100 bg-sky-50 p-3 text-sky-700">
                       <item.icon size={18} />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-slate-50">{item.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-200">{item.text}</p>
+                      <h3 className="font-semibold text-slate-950">{item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{item.text}</p>
                     </div>
                   </div>
                 </div>
@@ -165,6 +167,10 @@ export function FeaturesPage() {
 }
 
 export function ContactPage() {
+  const navigate = useNavigate();
+  const setSession = useAuthStore((state) => state.setSession);
+  const [showAdminLock, setShowAdminLock] = useState(false);
+  const [adminError, setAdminError] = useState("");
   const form = useForm({
     resolver: zodResolver(contactSchema),
     defaultValues: {
@@ -176,10 +182,28 @@ export function ContactPage() {
       message: "",
     },
   });
+  const adminForm = useForm({
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
   async function onSubmit(values) {
     await unwrap(api.post("/contact", values));
     form.reset();
+  }
+
+  async function unlockAdmin(values) {
+    setAdminError("");
+
+    try {
+      const session = await unwrap(api.post("/auth/login", values));
+      setSession(session);
+      navigate("/admin/dashboard");
+    } catch (error) {
+      setAdminError(error?.response?.data?.message || "Unable to unlock the admin workspace.");
+    }
   }
 
   return (
@@ -202,10 +226,6 @@ export function ContactPage() {
               </div>
             </div>
             <div className="grid gap-4">
-              <Link to="/admin/login" className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white no-underline">
-                <LockKeyhole size={16} />
-                Hidden Admin Login
-              </Link>
               <Link to="/faculty/login" className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 bg-white px-5 py-3 text-sm font-semibold text-sky-800 no-underline">
                 <LockKeyhole size={16} />
                 Hidden Faculty Access
@@ -248,6 +268,42 @@ export function ContactPage() {
                 Send to Admin Inbox
               </button>
             </div>
+            <div className="md:col-span-2 flex items-center justify-end border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-800"
+                onClick={() => setShowAdminLock((value) => !value)}
+              >
+                <LockKeyhole size={14} />
+                {showAdminLock ? "Hide Admin Lock" : "Admin Lock"}
+              </button>
+            </div>
+            {showAdminLock ? (
+              <div className="md:col-span-2 rounded-[24px] border border-sky-100 bg-sky-50/70 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-950">Hidden administrator access</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      Enter admin credentials here to move directly into the admin workspace.
+                    </p>
+                  </div>
+                  <LockKeyhole size={18} className="text-sky-700" />
+                </div>
+                {adminError ? <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{adminError}</div> : null}
+                <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={adminForm.handleSubmit(unlockAdmin)}>
+                  <FormField label="Admin Email" type="email" {...adminForm.register("email")} />
+                  <FormField label="Password" type="password" {...adminForm.register("password")} />
+                  <div className="md:col-span-2 flex flex-wrap items-center gap-4">
+                    <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
+                      {adminForm.formState.isSubmitting ? "Unlocking..." : "Enter Admin Workspace"}
+                    </button>
+                    <Link to="/recover-account" className="text-sm font-semibold text-slate-600 no-underline">
+                      Forgot password?
+                    </Link>
+                  </div>
+                </form>
+              </div>
+            ) : null}
           </form>
         </CardBody>
       </Card>

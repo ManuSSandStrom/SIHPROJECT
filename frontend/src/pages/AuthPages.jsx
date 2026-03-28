@@ -71,12 +71,12 @@ function readApiError(error, fallback) {
 
 function AuthIntro({ title, text, helper }) {
   return (
-    <Card className="border-slate-900/70 bg-[linear-gradient(180deg,#0f172a_0%,#162447_100%)] text-white shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
+    <Card className="border-sky-100 bg-[linear-gradient(180deg,#f7fbff_0%,#edf5ff_54%,#dbeafe_100%)] shadow-[0_24px_70px_rgba(37,99,235,0.12)]">
       <CardBody className="space-y-5 p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-100">Secure Access</p>
-        <h2 className="text-3xl font-semibold">{title}</h2>
-        <p className="text-sm leading-7 text-slate-200">{text}</p>
-        {helper ? <div className="rounded-[24px] border border-sky-400/20 bg-slate-900/45 p-4 text-sm leading-7 text-slate-100">{helper}</div> : null}
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">Secure Access</p>
+        <h2 className="text-3xl font-semibold text-slate-950">{title}</h2>
+        <p className="text-sm leading-7 text-slate-600">{text}</p>
+        {helper ? <div className="rounded-[24px] border border-sky-100 bg-white/80 p-4 text-sm leading-7 text-slate-700">{helper}</div> : null}
       </CardBody>
     </Card>
   );
@@ -248,7 +248,7 @@ export function StudentAccessPage({ mode = "login" }) {
               </>
             ) : null}
             <div className="md:col-span-2 flex flex-wrap items-center gap-4">
-              <button type="submit" className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white">
+              <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
                 {form.formState.isSubmitting
                   ? (isRegister ? "Creating Account..." : "Signing In...")
                   : (isRegister ? "Create Student Account" : "Enter Student Portal")}
@@ -367,7 +367,7 @@ export function FacultyAccessPage({ mode = "login" }) {
               </>
             ) : null}
             <div className="md:col-span-2 flex flex-wrap items-center gap-4">
-              <button type="submit" className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white">
+              <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
                 {form.formState.isSubmitting
                   ? (isRegister ? "Submitting Request..." : "Signing In...")
                   : (isRegister ? "Submit Approval Request" : "Enter Faculty Workspace")}
@@ -499,7 +499,7 @@ export function PasswordRecoveryPage() {
               <FormField label="New Password" type="password" error={linkResetForm.formState.errors.password?.message} {...linkResetForm.register("password")} />
               <FormField label="Confirm New Password" type="password" error={linkResetForm.formState.errors.confirmPassword?.message} {...linkResetForm.register("confirmPassword")} />
               <div className="flex flex-wrap items-center gap-4">
-                <button type="submit" className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white">
+                <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
                   {linkResetForm.formState.isSubmitting ? "Updating Password..." : "Update Password"}
                 </button>
                 <Link to="/recover-account" className="text-sm font-semibold text-sky-700 no-underline">
@@ -512,7 +512,7 @@ export function PasswordRecoveryPage() {
               <form className="grid gap-4 md:grid-cols-[1fr_auto]" onSubmit={requestForm.handleSubmit(requestOtp)}>
                 <FormField label="Account Email" type="email" error={requestForm.formState.errors.email?.message} {...requestForm.register("email")} />
                 <div className="md:pt-[30px]">
-                  <button type="submit" className="w-full rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white">
+                  <button type="submit" className="w-full rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
                     {requestForm.formState.isSubmitting ? "Sending OTP..." : requestMeta ? "Resend OTP" : "Send OTP"}
                   </button>
                 </div>
@@ -524,7 +524,7 @@ export function PasswordRecoveryPage() {
                 <FormField label="New Password" type="password" error={otpForm.formState.errors.password?.message} {...otpForm.register("password")} />
                 <FormField label="Confirm New Password" type="password" error={otpForm.formState.errors.confirmPassword?.message} {...otpForm.register("confirmPassword")} />
                 <div className="md:col-span-2 flex flex-wrap items-center gap-4">
-                  <button type="submit" className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white">
+                  <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
                     {otpForm.formState.isSubmitting ? "Verifying OTP..." : "Verify OTP and Reset"}
                   </button>
                   <Link to="/student/login" className="text-sm font-semibold text-sky-700 no-underline">
@@ -579,7 +579,7 @@ export function AdminAccessPage() {
             <FormField label="Admin Email" type="email" error={form.formState.errors.email?.message} {...form.register("email")} />
             <FormField label="Password" type="password" error={form.formState.errors.password?.message} {...form.register("password")} />
             <div className="md:col-span-2 flex flex-wrap items-center gap-4">
-              <button type="submit" className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white">
+              <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
                 {form.formState.isSubmitting ? "Unlocking..." : "Unlock Admin Workspace"}
               </button>
               <Link to="/recover-account" className="text-sm font-semibold text-slate-600 no-underline">

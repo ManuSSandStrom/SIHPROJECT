@@ -52,7 +52,7 @@ export function PublicShell() {
               {user ? (
                 <Link
                   to={`/${user.role}/dashboard`}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white no-underline"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-5 py-3 text-sm font-semibold text-white no-underline shadow-[0_12px_30px_rgba(29,78,216,0.25)]"
                 >
                   <ShieldCheck size={16} />
                   Open Workspace
