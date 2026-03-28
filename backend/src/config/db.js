@@ -1,0 +1,15 @@
+import mongoose from "mongoose";
+import { env } from "./env.js";
+
+export async function connectDatabase() {
+  if (!env.mongoUri) {
+    throw new Error("MONGO_URI is required to start the backend.");
+  }
+
+  mongoose.set("strictQuery", true);
+  await mongoose.connect(env.mongoUri, {
+    autoIndex: true,
+  });
+
+  return mongoose.connection;
+}
