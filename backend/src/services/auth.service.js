@@ -509,21 +509,32 @@ export async function resetPasswordWithOtp(payload, req) {
 }
 
 export async function ensureDefaultAdmin({ email, password }) {
-  let user = await User.findOne({ email: email.toLowerCase() });
+  const normalizedEmail = email.toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail });
+  const passwordHash = await hashPassword(password);
 
   if (!user) {
     user = await User.create({
       fullName: "Platform Administrator",
-      email: email.toLowerCase(),
-      passwordHash: await hashPassword(password),
+      email: normalizedEmail,
+      passwordHash,
       role: ROLES.ADMIN,
       status: USER_STATUSES.ACTIVE,
     });
-
-    await AdminProfile.create({
-      user: user._id,
-    });
+  } else {
+    user.fullName = user.fullName || "Platform Administrator";
+    user.email = normalizedEmail;
+    user.passwordHash = passwordHash;
+    user.role = ROLES.ADMIN;
+    user.status = USER_STATUSES.ACTIVE;
+    await user.save();
   }
+
+  await AdminProfile.findOneAndUpdate(
+    { user: user._id },
+    { user: user._id },
+    { new: true, upsert: true, setDefaultsOnInsert: true },
+  );
 
   return user;
 }

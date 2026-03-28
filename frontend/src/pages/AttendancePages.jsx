@@ -13,14 +13,30 @@ import { useApiState } from "../hooks/useApiState";
 export function AttendanceWorkspacePage({ role }) {
   const isAdmin = role === "admin";
   const isFaculty = role === "faculty";
+  const isStudent = role === "student";
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [statusMap, setStatusMap] = useState({});
-  const analytics = useApiState(() => unwrap(api.get("/attendance/analytics")), `analytics-${role}`);
-  const studentAttendance = useApiState(() => unwrap(api.get("/attendance/student-dashboard")), `student-attendance-${role}`);
-  const facultyPeriods = useApiState(() => unwrap(api.get("/attendance/today-periods")), `faculty-periods-${role}`);
-  const sections = useApiState(() => unwrap(api.get("/sections")), "attendance-sections");
-  const roster = useApiState(() => (selectedSection ? unwrap(api.get(`/attendance/roster/${selectedSection}`)) : Promise.resolve([])), selectedSection || "empty-section");
+  const analytics = useApiState(
+    () => (isAdmin ? unwrap(api.get("/attendance/analytics")) : Promise.resolve(null)),
+    `attendance-analytics-${role}`,
+  );
+  const studentAttendance = useApiState(
+    () => (isStudent ? unwrap(api.get("/attendance/student-dashboard")) : Promise.resolve(null)),
+    `student-attendance-${role}`,
+  );
+  const facultyPeriods = useApiState(
+    () => (isFaculty ? unwrap(api.get("/attendance/today-periods")) : Promise.resolve([])),
+    `faculty-periods-${role}`,
+  );
+  const sections = useApiState(
+    () => ((isAdmin || isFaculty) ? unwrap(api.get("/sections")) : Promise.resolve([])),
+    `attendance-sections-${role}`,
+  );
+  const roster = useApiState(
+    () => ((isAdmin || isFaculty) && selectedSection ? unwrap(api.get(`/attendance/roster/${selectedSection}`)) : Promise.resolve([])),
+    `${role}-${selectedSection || "empty-section"}`,
+  );
 
   useEffect(() => {
     if (!selectedSection && sections.data?.length) {
@@ -52,7 +68,7 @@ export function AttendanceWorkspacePage({ role }) {
     );
   }
 
-  if (role === "student") {
+  if (isStudent) {
     const data = studentAttendance.data || {};
     return (
       <div className="space-y-6">

@@ -144,10 +144,14 @@ export function IssuesWorkspacePage({ role }) {
 export function FeedbackWorkspacePage({ role }) {
   const isAdmin = role === "admin";
   const isFaculty = role === "faculty";
-  const analytics = useApiState(() => unwrap(api.get("/feedback/analytics")), `feedback-analytics-${role}`);
+  const isStudent = role === "student";
+  const analytics = useApiState(
+    () => (isAdmin ? unwrap(api.get("/feedback/analytics")) : Promise.resolve(null)),
+    `feedback-analytics-${role}`,
+  );
   const cycles = useApiState(() => unwrap(api.get("/feedback/cycles?active=true")), `feedback-cycles-${role}`);
-  const targets = useApiState(() => (role === "student" ? unwrap(api.get("/feedback/eligible-faculty")) : Promise.resolve([])), `feedback-targets-${role}`);
-  const submissions = useApiState(() => unwrap(api.get("/feedback/submissions")), `feedback-submissions-${role}`);
+  const targets = useApiState(() => (isStudent ? unwrap(api.get("/feedback/eligible-faculty")) : Promise.resolve([])), `feedback-targets-${role}`);
+  const submissions = useApiState(() => ((isAdmin || isFaculty) ? unwrap(api.get("/feedback/submissions")) : Promise.resolve([])), `feedback-submissions-${role}`);
   const templateForm = useForm({
     defaultValues: {
       name: "Custom Teaching Template",
