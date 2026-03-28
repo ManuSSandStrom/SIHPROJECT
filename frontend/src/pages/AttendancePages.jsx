@@ -17,6 +17,12 @@ export function AttendanceWorkspacePage({ role }) {
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [statusMap, setStatusMap] = useState({});
+  const [submitState, setSubmitState] = useState({
+    loading: false,
+    tone: "success",
+    message: "",
+  });
+  const rosterSectionId = isFaculty ? selectedPeriod?.section?._id || "" : selectedSection;
   const analytics = useApiState(
     () => (isAdmin ? unwrap(api.get("/attendance/analytics")) : Promise.resolve(null)),
     `attendance-analytics-${role}`,
@@ -34,38 +40,68 @@ export function AttendanceWorkspacePage({ role }) {
     `attendance-sections-${role}`,
   );
   const roster = useApiState(
-    () => ((isAdmin || isFaculty) && selectedSection ? unwrap(api.get(`/attendance/roster/${selectedSection}`)) : Promise.resolve([])),
-    `${role}-${selectedSection || "empty-section"}`,
+    () => ((isAdmin || isFaculty) && rosterSectionId ? unwrap(api.get(`/attendance/roster/${rosterSectionId}`)) : Promise.resolve([])),
+    `${role}-${rosterSectionId || "empty-section"}`,
   );
 
   useEffect(() => {
-    if (!selectedSection && sections.data?.length) {
+    if (!isFaculty && !selectedSection && sections.data?.length) {
       setSelectedSection(sections.data[0]._id);
     }
-  }, [sections.data, selectedSection]);
+  }, [isFaculty, sections.data, selectedSection]);
+
+  useEffect(() => {
+    if (isFaculty) {
+      setStatusMap({});
+      setSubmitState({ loading: false, tone: "success", message: "" });
+    }
+  }, [isFaculty, rosterSectionId, selectedPeriod]);
 
   async function submitFacultyAttendance() {
-    if (!selectedPeriod) return;
-    const session = await unwrap(
-      api.post("/attendance/sessions", {
-        sectionId: selectedPeriod.section._id,
-        subjectId: selectedPeriod.subject._id,
-        facultyId: selectedPeriod.faculty?._id,
-        timetableEntryId: selectedPeriod._id,
-        date: new Date().toISOString().slice(0, 10),
-        day: new Date().toLocaleDateString("en-US", { weekday: "long" }),
-        periodNumber: selectedPeriod.periodNumber,
-      }),
-    );
-    await unwrap(
-      api.post("/attendance/submit", {
-        sessionId: session._id,
-        records: (roster.data || []).map((student) => ({
-          studentId: student._id,
-          status: statusMap[student._id] || "present",
-        })),
-      }),
-    );
+    if (!selectedPeriod || !roster.data?.length) {
+      setSubmitState({
+        loading: false,
+        tone: "error",
+        message: "Select a scheduled period and wait for the section roster to load before submitting attendance.",
+      });
+      return;
+    }
+
+    setSubmitState({ loading: true, tone: "success", message: "" });
+
+    try {
+      const session = await unwrap(
+        api.post("/attendance/sessions", {
+          sectionId: selectedPeriod.section._id,
+          subjectId: selectedPeriod.subject._id,
+          facultyId: selectedPeriod.faculty?._id,
+          timetableEntryId: selectedPeriod._id,
+          date: new Date().toISOString().slice(0, 10),
+          day: new Date().toLocaleDateString("en-US", { weekday: "long" }),
+          periodNumber: selectedPeriod.periodNumber,
+        }),
+      );
+      await unwrap(
+        api.post("/attendance/submit", {
+          sessionId: session._id,
+          records: (roster.data || []).map((student) => ({
+            studentId: student._id,
+            status: statusMap[student._id] || "present",
+          })),
+        }),
+      );
+      setSubmitState({
+        loading: false,
+        tone: "success",
+        message: `Attendance submitted for ${selectedPeriod.section?.name} period ${selectedPeriod.periodNumber}.`,
+      });
+    } catch (error) {
+      setSubmitState({
+        loading: false,
+        tone: "error",
+        message: error?.response?.data?.message || "Unable to submit attendance right now.",
+      });
+    }
   }
 
   if (isStudent) {
@@ -141,7 +177,7 @@ export function AttendanceWorkspacePage({ role }) {
             <CardHeader title="Today's Assigned Periods" description="Published periods linked to your faculty profile." />
             <CardBody className="space-y-3">
               {(facultyPeriods.data || []).map((period) => (
-                <button key={period._id} type="button" className={`w-full rounded-[22px] border px-4 py-4 text-left ${selectedPeriod?._id === period._id ? "border-sky-500 bg-sky-50" : "border-sky-100 bg-white"}`} onClick={() => { setSelectedPeriod(period); setSelectedSection(period.section._id); }}>
+                <button key={period._id} type="button" className={`w-full rounded-[22px] border px-4 py-4 text-left ${selectedPeriod?._id === period._id ? "border-sky-500 bg-sky-50" : "border-sky-100 bg-white"}`} onClick={() => { setSelectedPeriod(period); }}>
                   <p className="font-semibold text-slate-950">{period.subject?.name}</p>
                   <p className="mt-1 text-sm text-slate-500">{period.section?.name} - Period {period.periodNumber} - {period.startTime} - {period.endTime}</p>
                 </button>
@@ -173,7 +209,12 @@ export function AttendanceWorkspacePage({ role }) {
                 </div>
               ))}
               {!roster.data?.length ? <EmptyState title="Select a period" description="Choose one of your assigned periods to load the roster." /> : null}
-              {roster.data?.length ? <button type="button" className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white" onClick={submitFacultyAttendance}>Submit Attendance</button> : null}
+              {submitState.message ? (
+                <div className={`rounded-2xl border px-4 py-3 text-sm ${submitState.tone === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+                  {submitState.message}
+                </div>
+              ) : null}
+              {roster.data?.length ? <button type="button" className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white" onClick={submitFacultyAttendance} disabled={submitState.loading}>{submitState.loading ? "Submitting Attendance..." : "Submit Attendance"}</button> : null}
             </CardBody>
           </Card>
         </div>
