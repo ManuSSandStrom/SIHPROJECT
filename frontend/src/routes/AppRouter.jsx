@@ -13,6 +13,7 @@ import {
 import { OperationsPage, TimetableWorkspacePage } from "../pages/OperationsAndTimetablePages";
 import { AttendanceWorkspacePage } from "../pages/AttendancePages";
 import {
+  ContactInboxPage,
   FeedbackWorkspacePage,
   IssuesWorkspacePage,
   NotificationsPage,
@@ -72,6 +73,7 @@ export function AppRouter() {
         <Route path="/admin/attendance" element={<RoleGuard roles={["admin"]}><AttendanceWorkspacePage role="admin" /></RoleGuard>} />
         <Route path="/admin/issues" element={<RoleGuard roles={["admin"]}><IssuesWorkspacePage role="admin" /></RoleGuard>} />
         <Route path="/admin/feedback" element={<RoleGuard roles={["admin"]}><FeedbackWorkspacePage role="admin" /></RoleGuard>} />
+        <Route path="/admin/contacts" element={<RoleGuard roles={["admin"]}><ContactInboxPage /></RoleGuard>} />
         <Route path="/admin/notifications" element={<RoleGuard roles={["admin"]}><NotificationsPage /></RoleGuard>} />
 
         <Route path="/faculty/dashboard" element={<RoleGuard roles={["faculty"]}><FacultyDashboardPage /></RoleGuard>} />

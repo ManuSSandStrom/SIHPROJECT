@@ -321,6 +321,170 @@ export function NotificationsPage() {
   );
 }
 
+export function ContactInboxPage() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const contacts = useApiState(
+    () => unwrap(api.get("/admin/contacts")),
+    `admin-contacts-${refreshKey}`,
+  );
+
+  useEffect(() => {
+    if (contacts.data?.items?.length && !selectedMessage) {
+      setSelectedMessage(contacts.data.items[0]);
+    }
+  }, [contacts.data?.items, selectedMessage]);
+
+  async function updateStatus(status) {
+    if (!selectedMessage) {
+      return;
+    }
+
+    await unwrap(api.patch(`/admin/contacts/${selectedMessage._id}`, { status }));
+    setRefreshKey((value) => value + 1);
+    setSelectedMessage((current) => (current ? { ...current, status } : current));
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Contact Inbox"
+        title="Review public Contact / Help submissions"
+        description="Every message sent from the public help form lands here for admin follow-up. You can inspect the sender details and move the message through inbox statuses."
+      />
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card>
+          <CardHeader title="Inbox Queue" description="Messages submitted from the public contact form." />
+          <CardBody className="space-y-3">
+            {(contacts.data?.items || []).map((item) => (
+              <button
+                key={item._id}
+                type="button"
+                className={`w-full rounded-[22px] border px-4 py-4 text-left ${
+                  selectedMessage?._id === item._id
+                    ? "border-sky-500 bg-sky-50"
+                    : "border-sky-100 bg-white"
+                }`}
+                onClick={() => setSelectedMessage(item)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.name}</p>
+                    <p className="mt-1 text-sm text-slate-500">{item.category}</p>
+                  </div>
+                  <Badge
+                    tone={
+                      item.status === "resolved"
+                        ? "success"
+                        : item.status === "in_progress"
+                          ? "warning"
+                          : "info"
+                    }
+                  >
+                    {item.status}
+                  </Badge>
+                </div>
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">
+                  {item.message}
+                </p>
+              </button>
+            ))}
+            {!contacts.data?.items?.length ? (
+              <EmptyState
+                title="No contact messages yet"
+                description="When someone submits the public Contact / Help form, the message will appear here."
+              />
+            ) : null}
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Message Detail"
+            description="Review sender information, message content, and update the current handling status."
+          />
+          <CardBody className="space-y-5">
+            {selectedMessage ? (
+              <>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Full Name</p>
+                    <p className="mt-2 text-base font-semibold text-slate-950">{selectedMessage.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Phone</p>
+                    <p className="mt-2 text-base font-semibold text-slate-950">{selectedMessage.phone || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Email</p>
+                    <p className="mt-2 text-base font-semibold text-slate-950">{selectedMessage.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">College ID</p>
+                    <p className="mt-2 text-base font-semibold text-slate-950">{selectedMessage.collegeId || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Category</p>
+                    <p className="mt-2"><Badge tone="neutral">{selectedMessage.category}</Badge></p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Current Status</p>
+                    <p className="mt-2">
+                      <Badge
+                        tone={
+                          selectedMessage.status === "resolved"
+                            ? "success"
+                            : selectedMessage.status === "in_progress"
+                              ? "warning"
+                              : "info"
+                        }
+                      >
+                        {selectedMessage.status}
+                      </Badge>
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-[22px] border border-sky-100 bg-slate-50/80 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Message</p>
+                  <p className="mt-3 text-sm leading-7 text-slate-700">{selectedMessage.message}</p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    className="rounded-xl border border-sky-200 px-3 py-2 text-xs font-semibold text-sky-800"
+                    onClick={() => updateStatus("new")}
+                  >
+                    Mark New
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-800"
+                    onClick={() => updateStatus("in_progress")}
+                  >
+                    Mark In Progress
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white"
+                    onClick={() => updateStatus("resolved")}
+                  >
+                    Mark Resolved
+                  </button>
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                title="No message selected"
+                description="Choose a contact message from the inbox to inspect it."
+              />
+            )}
+          </CardBody>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export function ProfilePage() {
   const user = useAuthStore((state) => state.user);
 

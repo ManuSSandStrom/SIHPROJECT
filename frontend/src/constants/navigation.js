@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   LayoutDashboard,
+  Mail,
   MessageCircleWarning,
   MessageSquareQuote,
   Send,
@@ -25,6 +26,7 @@ export const adminNavigation = [
   { label: "Attendance", to: "/admin/attendance", icon: ClipboardCheck },
   { label: "Issues", to: "/admin/issues", icon: MessageCircleWarning },
   { label: "Feedback", to: "/admin/feedback", icon: MessageSquareQuote },
+  { label: "Contact Inbox", to: "/admin/contacts", icon: Mail },
   { label: "Notifications", to: "/admin/notifications", icon: Send },
   { label: "Profile", to: "/profile", icon: Shield },
 ];
