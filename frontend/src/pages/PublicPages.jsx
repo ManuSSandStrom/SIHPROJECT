@@ -59,6 +59,30 @@ const heroMetrics = [
 
 const MotionDiv = motion.div;
 
+function AccessModeToggle({ value, onChange }) {
+  return (
+    <div className="inline-flex rounded-[22px] border border-sky-100 bg-sky-50/70 p-1">
+      {[
+        { value: "signin", label: "Sign In" },
+        { value: "register", label: "Register" },
+      ].map((item) => (
+        <button
+          key={item.value}
+          type="button"
+          onClick={() => onChange(item.value)}
+          className={`rounded-[18px] px-4 py-2 text-sm font-semibold transition ${
+            value === item.value
+              ? "bg-white text-sky-800 shadow-[0_10px_24px_rgba(14,116,144,0.12)]"
+              : "text-slate-500"
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function HomePage() {
   return (
     <div className="space-y-8">
@@ -169,8 +193,8 @@ export function FeaturesPage() {
 export function ContactPage() {
   const navigate = useNavigate();
   const setSession = useAuthStore((state) => state.setSession);
-  const [showAdminLock, setShowAdminLock] = useState(false);
-  const [adminError, setAdminError] = useState("");
+  const [workspaceMode, setWorkspaceMode] = useState("signin");
+  const [workspaceError, setWorkspaceError] = useState("");
   const form = useForm({
     resolver: zodResolver(contactSchema),
     defaultValues: {
@@ -184,25 +208,50 @@ export function ContactPage() {
   });
   const adminForm = useForm({
     defaultValues: {
+      accountType: "student_faculty",
+      role: "student",
       email: "",
       password: "",
     },
   });
+  const accountType = adminForm.watch("accountType");
+  const selectedRole = adminForm.watch("role");
 
   async function onSubmit(values) {
     await unwrap(api.post("/contact", values));
     form.reset();
   }
 
-  async function unlockAdmin(values) {
-    setAdminError("");
+  async function openWorkspace(values) {
+    setWorkspaceError("");
+
+    if (values.accountType === "student_faculty") {
+      if (workspaceMode === "register") {
+        navigate(values.role === "faculty" ? "/faculty/register" : "/student/register");
+        return;
+      }
+
+      navigate(values.role === "faculty" ? "/faculty/login" : "/student/login");
+      return;
+    }
+
+    if (workspaceMode === "register") {
+      setWorkspaceMode("signin");
+      setWorkspaceError("Organization workspace access uses sign in only. Enter admin credentials below.");
+      return;
+    }
 
     try {
-      const session = await unwrap(api.post("/auth/login", values));
+      const session = await unwrap(
+        api.post("/auth/login", {
+          email: values.email,
+          password: values.password,
+        }),
+      );
       setSession(session);
       navigate("/admin/dashboard");
     } catch (error) {
-      setAdminError(error?.response?.data?.message || "Unable to unlock the admin workspace.");
+      setWorkspaceError(error?.response?.data?.message || "Unable to open the organization workspace.");
     }
   }
 
@@ -225,12 +274,103 @@ export function ContactPage() {
                 <p className="mt-1 text-sm text-slate-600">Use this inbox for timetable, attendance, academic, or portal access help.</p>
               </div>
             </div>
-            <div className="grid gap-4">
-              <Link to="/faculty/login" className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 bg-white px-5 py-3 text-sm font-semibold text-sky-800 no-underline">
-                <LockKeyhole size={16} />
-                Hidden Faculty Access
-              </Link>
+            <p className="text-sm leading-7 text-slate-600">
+              Public support messages come to the admin inbox, and the same page also contains the secure workspace access panel for students, faculty, and organization administrators.
+            </p>
+          </CardBody>
+        </Card>
+        <Card className="border-sky-100 bg-[linear-gradient(180deg,#ffffff_0%,#f3f8ff_100%)] shadow-[0_24px_70px_rgba(37,99,235,0.10)]">
+          <CardBody className="space-y-6 p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">Workspace Access</p>
+                <h3 className="mt-3 text-3xl font-semibold text-slate-950">
+                  {workspaceMode === "register" ? "Create or request access" : "Access your dashboard"}
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">
+                  Use this guided access panel to move into the right workspace without exposing admin routes in the main navigation.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-sky-100 bg-white p-3 text-sky-700">
+                <LockKeyhole size={18} />
+              </div>
             </div>
+
+            <AccessModeToggle value={workspaceMode} onChange={setWorkspaceMode} />
+
+            {workspaceError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {workspaceError}
+              </div>
+            ) : null}
+
+            <form className="grid gap-4 md:grid-cols-2" onSubmit={adminForm.handleSubmit(openWorkspace)}>
+              <FormField
+                label="Account Type"
+                as="select"
+                options={[
+                  { value: "student_faculty", label: "Student / Faculty" },
+                  { value: "organization", label: "Organization" },
+                ]}
+                {...adminForm.register("accountType")}
+              />
+
+              {accountType === "student_faculty" ? (
+                <FormField
+                  label="Role"
+                  as="select"
+                  options={[
+                    { value: "student", label: "Student" },
+                    { value: "faculty", label: "Faculty" },
+                  ]}
+                  {...adminForm.register("role")}
+                />
+              ) : (
+                <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm leading-6 text-slate-600">
+                  Organization access is intended for internal administrators who know the secure credentials.
+                </div>
+              )}
+
+              {accountType === "organization" && workspaceMode === "signin" ? (
+                <>
+                  <FormField label="Organization Email" type="email" {...adminForm.register("email")} />
+                  <FormField label="Password" type="password" {...adminForm.register("password")} />
+                </>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm leading-6 text-slate-600">
+                    {workspaceMode === "register"
+                      ? `We will open the ${selectedRole === "faculty" ? "faculty approval request" : "student registration"} flow next.`
+                      : `We will open the ${selectedRole === "faculty" ? "faculty login" : "student login"} workspace next.`}
+                  </div>
+                  <div className="rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm leading-6 text-slate-500">
+                    {selectedRole === "faculty"
+                      ? "Faculty registration stays pending until admin approval."
+                      : "Students sign in with their academic profile and section mapping."}
+                  </div>
+                </>
+              )}
+
+              <div className="md:col-span-2 flex flex-wrap items-center gap-4">
+                <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
+                  {adminForm.formState.isSubmitting
+                    ? "Opening..."
+                    : accountType === "organization"
+                      ? workspaceMode === "register"
+                        ? "Use Organization Sign In"
+                        : "Enter Organization Workspace"
+                      : workspaceMode === "register"
+                        ? `Continue to ${selectedRole === "faculty" ? "Faculty" : "Student"} Registration`
+                        : `Continue to ${selectedRole === "faculty" ? "Faculty" : "Student"} Sign In`}
+                </button>
+                <Link
+                  to={accountType === "organization" ? "/recover-account" : selectedRole === "faculty" ? "/faculty/login" : "/student/login"}
+                  className="text-sm font-semibold text-slate-600 no-underline"
+                >
+                  {accountType === "organization" ? "Forgot password?" : "Open direct login"}
+                </Link>
+              </div>
+            </form>
           </CardBody>
         </Card>
       </div>
@@ -269,44 +409,6 @@ export function ContactPage() {
               </button>
             </div>
           </form>
-          <div className="mt-6 border-t border-slate-100 pt-4">
-            <div className="flex items-center justify-end">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-800"
-                onClick={() => setShowAdminLock((value) => !value)}
-              >
-                <LockKeyhole size={14} />
-                {showAdminLock ? "Hide Admin Lock" : "Admin Lock"}
-              </button>
-            </div>
-            {showAdminLock ? (
-              <div className="mt-4 rounded-[24px] border border-sky-100 bg-sky-50/70 p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-950">Hidden administrator access</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      Enter admin credentials here to move directly into the admin workspace.
-                    </p>
-                  </div>
-                  <LockKeyhole size={18} className="text-sky-700" />
-                </div>
-                {adminError ? <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{adminError}</div> : null}
-                <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={adminForm.handleSubmit(unlockAdmin)}>
-                  <FormField label="Admin Email" type="email" {...adminForm.register("email")} />
-                  <FormField label="Password" type="password" {...adminForm.register("password")} />
-                  <div className="md:col-span-2 flex flex-wrap items-center gap-4">
-                    <button type="submit" className="rounded-2xl bg-[linear-gradient(135deg,#0ea5e9_0%,#1d4ed8_100%)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(29,78,216,0.24)]">
-                      {adminForm.formState.isSubmitting ? "Unlocking..." : "Enter Admin Workspace"}
-                    </button>
-                    <Link to="/recover-account" className="text-sm font-semibold text-slate-600 no-underline">
-                      Forgot password?
-                    </Link>
-                  </div>
-                </form>
-              </div>
-            ) : null}
-          </div>
         </CardBody>
       </Card>
     </div>
